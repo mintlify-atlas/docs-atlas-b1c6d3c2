@@ -1,0 +1,260 @@
+---
+title: 'Offline Mode'
+description: 'Accept payments when the reader has no internet connectivity. The SDK queues payments locally and forwards them when connectivity is restored.'
+---
+
+Offline mode lets your integration continue accepting payments even when the reader cannot reach Stripe's servers. The SDK stores payment data locally on the device and automatically forwards queued payments once connectivity is restored.
+
+<Warning>
+  Offline payments are stored on the device. If the device loses power or is lost before queued payments are forwarded, those payments cannot be recovered. Understand the risks before enabling offline mode for your integration.
+</Warning>
+
+---
+
+## Enabling offline mode
+
+Set the `offlineBehavior` field on `CreatePaymentIntentParams` to control how each individual payment handles connectivity:
+
+```typescript
+type CreatePaymentIntentParams = {
+  amount: number;
+  currency: string;
+  offlineBehavior?: 'prefer_online' | 'require_online' | 'force_offline';
+  // ...other fields
+};
+```
+
+| Value | Behaviour |
+|-------|-----------|
+| `'prefer_online'` | Attempt to process online; automatically fall back to offline if the reader cannot connect. This is the default behaviour when the field is omitted. |
+| `'require_online'` | Fail the payment immediately if the reader is offline. Use this for high-value or sensitive transactions. |
+| `'force_offline'` | Always queue the payment for offline processing, even if the reader is currently online. |
+
+```tsx
+const { createPaymentIntent } = useStripeTerminal();
+
+// This payment will be queued offline if connectivity is unavailable
+const { paymentIntent, error } = await createPaymentIntent({
+  amount: 2500,
+  currency: 'usd',
+  offlineBehavior: 'prefer_online',
+});
+```
+
+---
+
+## Checking offline status
+
+Call `getOfflineStatus()` at any time to inspect the current offline payment queue:
+
+```typescript
+export type OfflineStatusDetails = {
+  networkStatus: 'online' | 'offline' | 'unknown';
+  offlinePaymentsCount: number;
+  offlinePaymentAmountsByCurrency: { [currency: string]: number };
+};
+
+export type OfflineStatus = {
+  sdk: OfflineStatusDetails;      // Status of the SDK's own queue
+  reader?: OfflineStatusDetails;  // Status of the reader's queue (if available)
+};
+```
+
+```tsx
+const { getOfflineStatus } = useStripeTerminal();
+
+const status = await getOfflineStatus();
+
+console.log('SDK network status:', status.sdk.networkStatus);
+console.log('Queued payments:', status.sdk.offlinePaymentsCount);
+console.log('Queued amounts:', status.sdk.offlinePaymentAmountsByCurrency);
+// e.g. { usd: 7500, eur: 1200 }
+
+if (status.reader) {
+  console.log('Reader network status:', status.reader.networkStatus);
+  console.log('Reader queued payments:', status.reader.offlinePaymentsCount);
+}
+```
+
+---
+
+## Reacting to status changes
+
+The `onDidChangeOfflineStatus` callback fires whenever the offline status changes (e.g. the reader loses or regains connectivity, or a payment is queued or forwarded).
+
+```tsx
+const { } = useStripeTerminal({
+  onDidChangeOfflineStatus: (status) => {
+    const { sdk, reader } = status;
+
+    if (sdk.networkStatus === 'offline') {
+      showBanner('You are offline. Payments will be stored and forwarded later.');
+    } else {
+      hideBanner();
+    }
+
+    if (sdk.offlinePaymentsCount > 0) {
+      console.log(
+        `${sdk.offlinePaymentsCount} payment(s) pending upload`,
+        sdk.offlinePaymentAmountsByCurrency
+      );
+    }
+  },
+});
+```
+
+---
+
+## Payment forwarding callbacks
+
+When connectivity is restored, the SDK automatically attempts to forward queued payments to Stripe. Two callbacks notify you of the outcome:
+
+### onDidForwardPaymentIntent
+
+Called each time a queued offline payment is successfully forwarded:
+
+```tsx
+useStripeTerminal({
+  onDidForwardPaymentIntent: (paymentIntent, error) => {
+    if (error) {
+      // The payment was forwarded but encountered an error during confirmation
+      console.error('Forward error for intent', paymentIntent.id, error);
+    } else {
+      console.log('Payment forwarded successfully:', paymentIntent.id);
+      console.log('Final status:', paymentIntent.status);
+    }
+  },
+});
+```
+
+### onDidForwardingFailure
+
+Called when the SDK cannot forward a payment (e.g. the payment data is corrupted or the network drops again mid-upload):
+
+```tsx
+useStripeTerminal({
+  onDidForwardingFailure: (error) => {
+    if (error) {
+      console.error('Forwarding failed:', error.message, error.code);
+    }
+  },
+});
+```
+
+---
+
+## Full offline mode example
+
+```tsx OfflinePaymentScreen.tsx
+import { useEffect } from 'react';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+export default function OfflinePaymentScreen() {
+  const {
+    createPaymentIntent,
+    collectPaymentMethod,
+    confirmPaymentIntent,
+    getOfflineStatus,
+  } = useStripeTerminal({
+    onDidChangeOfflineStatus: (status) => {
+      console.log('Offline status changed:', status.sdk.networkStatus);
+      console.log('Pending payments:', status.sdk.offlinePaymentsCount);
+    },
+    onDidForwardPaymentIntent: (paymentIntent, error) => {
+      if (!error) {
+        console.log('Queued payment uploaded:', paymentIntent.id);
+      }
+    },
+    onDidForwardingFailure: (error) => {
+      console.error('Upload failed:', error?.message);
+    },
+  });
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      const status = await getOfflineStatus();
+      console.log('Current SDK status:', status.sdk);
+    };
+    checkStatus();
+  }, [getOfflineStatus]);
+
+  const handlePayment = async () => {
+    const { paymentIntent, error: createError } = await createPaymentIntent({
+      amount: 1500,
+      currency: 'usd',
+      // Fall back to offline automatically if the reader has no connectivity
+      offlineBehavior: 'prefer_online',
+    });
+
+    if (createError || !paymentIntent) {
+      console.error('Create failed:', createError);
+      return;
+    }
+
+    const { paymentIntent: collected, error: collectError } =
+      await collectPaymentMethod({ paymentIntent });
+
+    if (collectError || !collected) {
+      console.error('Collect failed:', collectError);
+      return;
+    }
+
+    const { paymentIntent: confirmed, error: confirmError } =
+      await confirmPaymentIntent({ paymentIntent: collected });
+
+    if (confirmError) {
+      console.error('Confirm failed:', confirmError);
+      return;
+    }
+
+    const isOffline = confirmed?.offlineDetails !== undefined;
+    if (isOffline) {
+      console.log('Payment stored offline, will be forwarded when online.');
+      console.log('Stored at:', confirmed?.offlineDetails?.storedAtMs);
+    } else {
+      console.log('Payment processed online. Status:', confirmed?.status);
+    }
+  };
+
+  return null;
+}
+```
+
+---
+
+## OfflineDetails on a PaymentIntent
+
+When a payment is collected offline, the returned `PaymentIntent.Type` includes an `offlineDetails` field:
+
+```typescript
+export type OfflineDetails = {
+  storedAtMs: string;                          // Timestamp when the payment was stored
+  requiresUpload: boolean;                     // Whether forwarding is still pending
+  cardPresentDetails: OfflineCardPresentDetails;
+  amountDetails: AmountDetails;
+};
+
+export type OfflineCardPresentDetails = {
+  brand: string;
+  cardholderName: string;
+  expMonth: number;
+  expYear: number;
+  last4: string;
+  readMethod: string;
+  receiptDetails: ReceiptDetails;
+};
+```
+
+---
+
+## Limitations and risks
+
+<Warning>
+  Review these limitations before deploying offline mode in production.
+</Warning>
+
+- **Data loss on power failure.** Queued payments are stored on the device. If the device runs out of battery or is physically damaged before queued payments are forwarded, those payments are lost and cannot be recovered.
+- **No real-time fraud checks.** Offline payments bypass Stripe's online fraud detection. Stripe performs risk analysis when the payment is forwarded, but high-risk transactions can still result in disputes.
+- **Delayed settlement.** Offline payments are not settled until they are forwarded, which may affect your cash flow.
+- **Reader firmware requirements.** Not all reader models support offline mode. Check Stripe's documentation for reader compatibility.
+- **Payment limits.** Stripe enforces per-payment and cumulative offline payment limits to reduce risk exposure.

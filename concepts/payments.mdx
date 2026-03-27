@@ -1,0 +1,312 @@
+---
+title: 'Payments'
+description: 'Create a PaymentIntent, collect a payment method, and confirm the payment using the Stripe Terminal React Native SDK.'
+---
+
+The standard payment flow has three sequential steps:
+
+<Steps>
+  <Step title="Create a PaymentIntent">
+    Call `createPaymentIntent` with the amount, currency, and any additional options. This creates a PaymentIntent on your Stripe account.
+  </Step>
+  <Step title="Collect a payment method">
+    Call `collectPaymentMethod` with the PaymentIntent returned in step 1. The SDK prompts the customer to present their card on the reader.
+  </Step>
+  <Step title="Confirm the PaymentIntent">
+    Call `confirmPaymentIntent` with the updated PaymentIntent from step 2. The SDK authorizes or captures the payment.
+  </Step>
+</Steps>
+
+```tsx FullPaymentFlow.tsx
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+function PaymentScreen() {
+  const {
+    createPaymentIntent,
+    collectPaymentMethod,
+    confirmPaymentIntent,
+    cancelCollectPaymentMethod,
+  } = useStripeTerminal();
+
+  const handlePayment = async () => {
+    // Step 1: Create the PaymentIntent
+    const { paymentIntent, error: createError } = await createPaymentIntent({
+      amount: 1000, // Amount in the smallest currency unit (e.g. cents)
+      currency: 'usd',
+      captureMethod: 'automatic',
+    });
+
+    if (createError || !paymentIntent) {
+      console.error('Failed to create PaymentIntent:', createError);
+      return;
+    }
+
+    // Step 2: Collect a payment method from the reader
+    const { paymentIntent: collectedIntent, error: collectError } =
+      await collectPaymentMethod({ paymentIntent });
+
+    if (collectError || !collectedIntent) {
+      console.error('Failed to collect payment method:', collectError);
+      return;
+    }
+
+    // Step 3: Confirm the PaymentIntent
+    const { paymentIntent: confirmedIntent, error: confirmError } =
+      await confirmPaymentIntent({ paymentIntent: collectedIntent });
+
+    if (confirmError) {
+      console.error('Failed to confirm payment:', confirmError);
+      return;
+    }
+
+    console.log('Payment succeeded! Status:', confirmedIntent?.status);
+  };
+
+  return null;
+}
+```
+
+---
+
+## PaymentIntent lifecycle
+
+### CreatePaymentIntentParams
+
+```typescript
+export type CreatePaymentIntentParams = {
+  // Required
+  amount: number;   // Smallest currency unit (e.g. cents for USD)
+  currency: string; // ISO 4217 lowercase (e.g. 'usd', 'eur')
+
+  // Capture
+  captureMethod?: 'automatic' | 'manual';
+
+  // Offline behavior
+  offlineBehavior?: 'prefer_online' | 'require_online' | 'force_offline';
+
+  // Payment method options
+  paymentMethodTypes?: string[];      // iOS only
+  paymentMethodOptions?: PaymentMethodOptions;
+
+  // Optional metadata and routing
+  setupFutureUsage?: 'off_session' | 'on_session';
+  onBehalfOf?: string;
+  transferDataDestination?: string;
+  applicationFeeAmount?: number;
+  description?: string;
+  statementDescriptor?: string;
+  statementDescriptorSuffix?: string;
+  receiptEmail?: string;
+  customer?: string;
+  transferGroup?: string;
+  metadata?: Record<string, string>;
+};
+```
+
+#### captureMethod
+
+- `'automatic'` — The payment is captured immediately when confirmed. Use this for most integrations.
+- `'manual'` — The payment is authorized but not captured. You must call the Stripe API to capture it later. Useful for flows where you need to adjust the amount before capturing.
+
+#### offlineBehavior
+
+Controls how the SDK behaves when the reader has no internet connectivity. See [Offline Mode](/concepts/offline-mode) for full details.
+
+- `'prefer_online'` — Attempt to process online; fall back to offline if unavailable.
+- `'require_online'` — Fail the payment if the reader is offline.
+- `'force_offline'` — Always queue the payment for offline processing.
+
+#### PaymentMethodOptions
+
+```typescript
+export type PaymentMethodOptions = {
+  requestExtendedAuthorization?: boolean;
+  requestIncrementalAuthorizationSupport?: boolean;
+  requestedPriority: string;
+  requestPartialAuthorization?: string;
+  captureMethod?: 'manual' | 'manual_preferred';
+};
+```
+
+---
+
+### CollectPaymentMethodParams
+
+```typescript
+export type CollectPaymentMethodParams = {
+  paymentIntent: PaymentIntent.Type; // Required — the intent from createPaymentIntent
+  skipTipping?: boolean;             // Skip tip collection screen
+  tipEligibleAmount?: number;        // Amount eligible for tipping (in smallest currency unit)
+  updatePaymentIntent?: boolean;     // Update the intent amount with the tip
+  customerCancellation?:             // Whether customer can cancel on the reader
+    | 'enableIfAvailable'
+    | 'disableIfAvailable'
+    | 'unspecified';
+  requestDynamicCurrencyConversion?: boolean;
+  surchargeNotice?: string;          // Custom surcharge notice text
+  allowRedisplay?: 'always' | 'limited' | 'unspecified';
+  motoConfiguration?: { skipCvc?: boolean };
+};
+```
+
+---
+
+### ConfirmPaymentMethodParams
+
+```typescript
+export type ConfirmPaymentMethodParams = {
+  paymentIntent: PaymentIntent.Type; // Required — the intent from collectPaymentMethod
+  surcharge?: Surcharge;             // Optional surcharge details
+  returnUrl?: string;                // Return URL for redirect-based payment methods
+};
+
+export type Surcharge = {
+  amount: number;
+  consent?: {
+    notice: string;
+    collection: 'disabled' | 'enabled';
+  } | null;
+};
+```
+
+---
+
+### PaymentIntent.Type
+
+After a successful confirmation, the returned `PaymentIntent.Type` contains the payment result:
+
+```typescript
+export interface PaymentIntent.Type {
+  id: string;
+  amount: number;
+  currency: string;
+  status?: PaymentIntent.Status;
+  captureMethod: string;
+  charges: Charge[];
+  created: string;
+  livemode: boolean;
+  offlineDetails?: OfflineDetails; // Present when collected offline
+  paymentMethod?: PaymentMethod.Type;
+  amountTip?: number;
+  amountSurcharge?: number;
+  metadata?: Record<string, string>;
+  // ...additional fields
+}
+
+export type PaymentIntent.Status =
+  | 'canceled'
+  | 'processing'
+  | 'requiresAction'
+  | 'requiresCapture'
+  | 'requiresConfirmation'
+  | 'requiresPaymentMethod'
+  | 'succeeded'
+  | 'unknown';
+```
+
+---
+
+## PaymentStatus
+
+The `onDidChangePaymentStatus` callback and `getPaymentStatus()` method report the current payment state:
+
+| Status | Description |
+|--------|-------------|
+| `'notReady'` | No reader is connected or the SDK is not initialized. |
+| `'ready'` | A reader is connected and ready to collect a payment. |
+| `'waitingForInput'` | The reader is waiting for the customer to present a card. |
+| `'processing'` | A payment operation is in progress. |
+
+```tsx
+useStripeTerminal({
+  onDidChangePaymentStatus: (status) => {
+    if (status === 'waitingForInput') {
+      showCustomerPrompt('Please tap, insert, or swipe your card');
+    }
+  },
+});
+```
+
+---
+
+## processPaymentIntent (combined step)
+
+`processPaymentIntent` is an alternative that combines `collectPaymentMethod` and `confirmPaymentIntent` into a single call. It accepts all parameters from both methods.
+
+```typescript
+export type ProcessPaymentIntentParams = {
+  paymentIntent: PaymentIntent.Type;
+  // CollectPaymentMethod options:
+  skipTipping?: boolean;
+  tipEligibleAmount?: number;
+  updatePaymentIntent?: boolean;
+  customerCancellation?: CustomerCancellation;
+  requestDynamicCurrencyConversion?: boolean;
+  surchargeNotice?: string;
+  allowRedisplay?: AllowRedisplay;
+  motoConfiguration?: MotoConfiguration;
+  // ConfirmPaymentIntent options:
+  surcharge?: Surcharge;
+  returnUrl?: string;
+};
+```
+
+```tsx
+const { paymentIntent, error } = await processPaymentIntent({
+  paymentIntent,
+  skipTipping: false,
+  captureMethod: 'automatic',
+});
+```
+
+<Tip>
+  Use `processPaymentIntent` when you do not need to perform any logic between collecting the payment method and confirming — it simplifies your code and reduces round trips.
+</Tip>
+
+---
+
+## Cancelling operations
+
+You can cancel at each step of the payment flow:
+
+| Operation in progress | Cancel method |
+|----------------------|---------------|
+| `collectPaymentMethod` | `cancelCollectPaymentMethod()` |
+| `confirmPaymentIntent` | `cancelConfirmPaymentIntent()` |
+| `processPaymentIntent` | `cancelProcessPaymentIntent()` |
+
+```tsx
+const {
+  collectPaymentMethod,
+  cancelCollectPaymentMethod,
+} = useStripeTerminal();
+
+// Start collecting
+collectPaymentMethod({ paymentIntent });
+
+// Cancel if the customer walks away
+await cancelCollectPaymentMethod();
+```
+
+<Warning>
+  Cancelling does not void the PaymentIntent on Stripe. If you cancel after `collectPaymentMethod` has completed, you should also call `cancelPaymentIntent` (which takes a `CancelPaymentMethodParams` with the `paymentIntent`) to cancel the intent on Stripe.
+</Warning>
+
+---
+
+## Reader input prompts
+
+During `collectPaymentMethod`, the SDK fires callbacks to guide the customer:
+
+```tsx
+useStripeTerminal({
+  onDidRequestReaderInput: (options) => {
+    // options: Array of 'insertCard' | 'swipeCard' | 'tapCard'
+    console.log('Reader input options:', options);
+  },
+  onDidRequestReaderDisplayMessage: (message) => {
+    // message: e.g. 'removeCard', 'retryCard', 'insertOrSwipeCard'
+    console.log('Display message:', message);
+  },
+});
+```

@@ -1,80 +1,259 @@
 ---
-title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+title: 'Quickstart'
+description: 'Go from zero to a working in-person payment integration with Stripe Terminal React Native.'
 ---
 
-## Get started in three steps
+This guide walks through a complete end-to-end integration: installing the SDK, wrapping your app, discovering a simulated reader, and collecting a payment.
 
-Get your documentation site running locally and make your first customization.
+<Steps>
+  <Step title="Install the package">
+    Add the SDK to your React Native project using npm or yarn.
 
-### Step 1: Set up your local environment
+    <CodeGroup>
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
-    
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
-    
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash npm
+    npm install @stripe/stripe-terminal-react-native
+    ```
 
-### Step 2: Deploy your changes
+    ```bash yarn
+    yarn add @stripe/stripe-terminal-react-native
+    ```
 
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
-    
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    </CodeGroup>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+    For iOS, install the native pod:
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+    ```bash
+    cd ios && pod install
+    ```
+  </Step>
 
-### Step 3: Go live
+  <Step title="Set up a connection token endpoint">
+    The SDK needs a short-lived connection token from your backend to authenticate with Stripe. Create an endpoint on your server that calls the Stripe API and returns the token secret.
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+    Your backend should return a JSON body with a `secret` field — for example:
+
+    ```json
+    { "secret": "pst_test_..." }
+    ```
+
+    Then write a `tokenProvider` function in your app that fetches from that endpoint:
+
+    ```typescript
+    const fetchTokenProvider = async (): Promise<string> => {
+      const response = await fetch(`${API_URL}/connection_token`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+      const { secret } = await response.json();
+      return secret;
+    };
+    ```
+
+    <Warning>
+      Never expose your Stripe secret key in your React Native app. Always fetch connection tokens from your own backend server.
+    </Warning>
+  </Step>
+
+  <Step title="Wrap your app with StripeTerminalProvider">
+    In your root component, wrap your app with `StripeTerminalProvider` and pass the `tokenProvider` function. This sets up the context that all SDK hooks and components depend on.
+
+    ```tsx
+    // Root.tsx
+    import { StripeTerminalProvider } from '@stripe/stripe-terminal-react-native';
+
+    function Root() {
+      const fetchTokenProvider = async () => {
+        const response = await fetch(`${API_URL}/connection_token`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        const { secret } = await response.json();
+        return secret;
+      };
+
+      return (
+        <StripeTerminalProvider
+          logLevel="verbose"
+          tokenProvider={fetchTokenProvider}
+        >
+          <App />
+        </StripeTerminalProvider>
+      );
+    }
+    ```
+
+    <Note>
+      Set `logLevel="verbose"` during development to see detailed SDK logs. Remove or set to `"none"` before shipping to production.
+    </Note>
+  </Step>
+
+  <Step title="Initialize the SDK">
+    Call `initialize` from the `useStripeTerminal` hook inside a component that is nested within `StripeTerminalProvider`. This must happen before any other SDK method is called.
+
+    ```tsx
+    // App.tsx
+    import React, { useEffect } from 'react';
+    import { View } from 'react-native';
+    import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+    function App() {
+      const { initialize } = useStripeTerminal();
+
+      useEffect(() => {
+        initialize();
+      }, [initialize]);
+
+      return <View />;
+    }
+    ```
+
+    <Warning>
+      `initialize` must be called from a **child** of `StripeTerminalProvider`, not from the same component that renders it.
+    </Warning>
+  </Step>
+
+  <Step title="Discover readers">
+    Use `discoverReaders` to search for available readers. During development, set `simulated: true` to use a built-in simulated reader without any physical hardware.
+
+    ```tsx
+    // PaymentScreen.tsx
+    import React, { useEffect } from 'react';
+    import { View } from 'react-native';
+    import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+    export default function PaymentScreen() {
+      const { discoverReaders, connectedReader, discoveredReaders } =
+        useStripeTerminal({
+          onUpdateDiscoveredReaders: (readers) => {
+            // readers is the updated list of discovered readers
+            console.log('Discovered readers:', readers);
+          },
+          onDidChangeConnectionStatus: (status) => {
+            console.log('Connection status:', status);
+          },
+        });
+
+      useEffect(() => {
+        discoverReaders({
+          discoveryMethod: 'bluetoothScan',
+          simulated: true,
+        });
+      }, [discoverReaders]);
+
+      return <View />;
+    }
+    ```
+  </Step>
+
+  <Step title="Connect to a reader">
+    Once readers are discovered, call `connectReader` with the reader you want to connect to. Pass the `locationId` of the Stripe Terminal location associated with the reader.
+
+    ```tsx
+    import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+    export default function PaymentScreen() {
+      const { discoverReaders, connectReader, discoveredReaders } =
+        useStripeTerminal({
+          onUpdateDiscoveredReaders: async (readers) => {
+            if (readers.length > 0) {
+              const { reader, error } = await connectReader({
+                discoveryMethod: 'bluetoothScan',
+                reader: readers[0],
+                locationId: 'tml_your_location_id',
+              });
+
+              if (error) {
+                console.error('Failed to connect:', error.message);
+              } else {
+                console.log('Connected to reader:', reader?.id);
+              }
+            }
+          },
+        });
+
+      useEffect(() => {
+        discoverReaders({
+          discoveryMethod: 'bluetoothScan',
+          simulated: true,
+        });
+      }, [discoverReaders]);
+
+      return null;
+    }
+    ```
+  </Step>
+
+  <Step title="Create and collect a payment">
+    With a reader connected, you can collect a payment in three steps:
+
+    1. **`createPaymentIntent`** — Create a PaymentIntent for the amount to charge (in the smallest currency unit, e.g. cents).
+    2. **`collectPaymentMethod`** — Present the reader to the customer to tap, dip, or swipe their card.
+    3. **`confirmPaymentIntent`** — Submit the payment to Stripe and finalize the charge.
+
+    ```tsx
+    import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+    export default function PaymentScreen() {
+      const {
+        createPaymentIntent,
+        collectPaymentMethod,
+        confirmPaymentIntent,
+      } = useStripeTerminal();
+
+      const collectPayment = async () => {
+        // Step 1: Create the PaymentIntent
+        const { paymentIntent, error: createError } = await createPaymentIntent({
+          amount: 1000, // $10.00 in cents
+          currency: 'usd',
+          captureMethod: 'automatic',
+        });
+
+        if (createError || !paymentIntent) {
+          console.error('Failed to create PaymentIntent:', createError?.message);
+          return;
+        }
+
+        // Step 2: Collect the payment method from the reader
+        const { paymentIntent: collectedIntent, error: collectError } =
+          await collectPaymentMethod({
+            paymentIntent,
+          });
+
+        if (collectError || !collectedIntent) {
+          console.error('Failed to collect payment method:', collectError?.message);
+          return;
+        }
+
+        // Step 3: Confirm the payment
+        const { paymentIntent: confirmedIntent, error: confirmError } =
+          await confirmPaymentIntent({
+            paymentIntent: collectedIntent,
+          });
+
+        if (confirmError) {
+          console.error('Failed to confirm payment:', confirmError.message);
+          return;
+        }
+
+        console.log('Payment succeeded:', confirmedIntent?.id);
+      };
+
+      return null;
+    }
+    ```
+
+    <Tip>
+      When using a simulated reader, no real card is charged. Use `simulated: true` in `discoverReaders` during development and switch to a physical reader in production.
+    </Tip>
+  </Step>
+</Steps>
 
 ## Next steps
 
-Now that you have your docs running, explore these key features:
-
-<CardGroup cols={2}>
-
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
-
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
-
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
-
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
-
-</CardGroup>
-
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+- Review [Requirements](/requirements) for platform-specific setup including permissions and minimum OS versions.
+- Browse the [SDK reference](https://stripe.dev/stripe-terminal-react-native) for the full list of available methods and types.

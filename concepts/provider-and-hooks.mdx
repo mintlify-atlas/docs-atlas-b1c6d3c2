@@ -1,0 +1,292 @@
+---
+title: 'Provider and Hooks'
+description: 'Set up StripeTerminalProvider, use the useStripeTerminal hook, and handle SDK events in your React Native app.'
+---
+
+## StripeTerminalProvider
+
+`StripeTerminalProvider` is the root component that initializes the Stripe Terminal SDK. It must wrap your entire application (or at minimum any component that uses Terminal functionality) so that the SDK context is available throughout the tree.
+
+```tsx Root.tsx
+import { StripeTerminalProvider } from '@stripe/stripe-terminal-react-native';
+
+function Root() {
+  const fetchTokenProvider = async () => {
+    const response = await fetch(`${API_URL}/connection_token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+    });
+    const { secret } = await response.json();
+    return secret;
+  };
+
+  return (
+    <StripeTerminalProvider
+      logLevel="verbose"
+      tokenProvider={fetchTokenProvider}
+    >
+      <App />
+    </StripeTerminalProvider>
+  );
+}
+```
+
+### Props
+
+| Prop | Type | Required | Description |
+|------|------|----------|-------------|
+| `tokenProvider` | `() => Promise<string>` | Yes | Async function that fetches a connection token from your server and returns it as a string. |
+| `logLevel` | `LogLevel` | No | Controls SDK log verbosity. iOS accepts `'none'` or `'verbose'`. Android additionally accepts `'error'` and `'warning'`. |
+| `children` | `React.ReactElement \| React.ReactElement[]` | Yes | The rest of your app. |
+
+### tokenProvider
+
+The `tokenProvider` is an async function that calls your backend to create a [connection token](https://stripe.com/docs/terminal/fleet/connecting-to-internet-readers#connection-token) via the Stripe Terminal API. The SDK calls this function automatically whenever it needs a fresh token — you do not need to call it yourself.
+
+```tsx
+const fetchTokenProvider = async () => {
+  const response = await fetch('http://your-backend.example.com/connection_token');
+  const { secret } = await response.json();
+  return secret; // Return the connection token string
+};
+```
+
+<Warning>
+  Never hardcode or expose your Stripe secret key in the client. The `tokenProvider` must call your own server, which then calls the Stripe API.
+</Warning>
+
+### Apps-on-Devices mode (Android only)
+
+For apps running directly on Stripe smart readers you can use the built-in `AppsOnDevicesConnectionTokenProvider`, which obtains connection tokens without contacting your server.
+
+```tsx
+import {
+  StripeTerminalProvider,
+  AppsOnDevicesConnectionTokenProvider,
+} from '@stripe/stripe-terminal-react-native';
+
+<StripeTerminalProvider tokenProvider={AppsOnDevicesConnectionTokenProvider}>
+  <App />
+</StripeTerminalProvider>
+```
+
+<Note>
+  Apps-on-Devices is in private preview and available on Android only. Contact Stripe support to enable it on your account.
+</Note>
+
+---
+
+## useStripeTerminal
+
+`useStripeTerminal` is the primary hook for interacting with the SDK. Call it in any component nested inside `StripeTerminalProvider` to get access to all SDK methods and reactive state.
+
+```tsx
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+function PaymentScreen() {
+  const {
+    initialize,
+    discoverReaders,
+    connectReader,
+    createPaymentIntent,
+    collectPaymentMethod,
+    confirmPaymentIntent,
+    connectedReader,
+    discoveredReaders,
+    loading,
+    isInitialized,
+  } = useStripeTerminal({
+    onUpdateDiscoveredReaders: (readers) => {
+      console.log('Discovered readers:', readers);
+    },
+    onDidChangeConnectionStatus: (status) => {
+      console.log('Connection status:', status);
+    },
+  });
+}
+```
+
+### State returned by the hook
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `connectedReader` | `Reader.Type \| null \| undefined` | The currently connected reader, or `null` if not connected. |
+| `discoveredReaders` | `Reader.Type[]` | Readers found during the current discovery session. |
+| `loading` | `boolean` | `true` while an SDK operation is in progress. |
+| `isInitialized` | `boolean` | `true` after `initialize()` has successfully completed. |
+
+### Initializing the SDK
+
+After mounting `StripeTerminalProvider`, call `initialize()` from a **nested** component. The SDK will not work correctly if `initialize()` is invoked inside the provider itself.
+
+```tsx App.tsx
+import { useEffect } from 'react';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+function App() {
+  const { initialize } = useStripeTerminal();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  return <View />;
+}
+```
+
+<Warning>
+  `initialize()` must be called from a component that is a **child** of `StripeTerminalProvider`, not inside the provider component itself. Calling it in the provider will throw an error.
+</Warning>
+
+---
+
+## Event callbacks (UserCallbacks)
+
+Pass any of the following callbacks to `useStripeTerminal` to react to SDK events. All callbacks are optional.
+
+```typescript
+export type UserCallbacks = {
+  // Discovery
+  onUpdateDiscoveredReaders?(readers: Reader.Type[]): void;
+  onFinishDiscoveringReaders?(error?: StripeError): void;
+
+  // Software updates
+  onDidReportAvailableUpdate?(update: Reader.SoftwareUpdate): void;
+  onDidStartInstallingUpdate?(update: Reader.SoftwareUpdate): void;
+  onDidReportReaderSoftwareUpdateProgress?(progress: string): void;
+  onDidFinishInstallingUpdate?(result: UpdateSoftwareResultType): void;
+
+  // Reader input prompts
+  onDidRequestReaderInput?(input: Reader.InputOptions[]): void;
+  onDidRequestReaderDisplayMessage?(message: Reader.DisplayMessage): void;
+
+  // Connection
+  onDidChangeConnectionStatus?(status: Reader.ConnectionStatus): void;
+  onDidChangePaymentStatus?(status: PaymentStatus): void;
+
+  // Reconnection
+  onDidStartReaderReconnect?(reader: Reader.Type, reason?: Reader.DisconnectReason): void;
+  onDidSucceedReaderReconnect?(reader: Reader.Type): void;
+  onDidFailReaderReconnect?(reader: Reader.Type): void;
+
+  // Offline mode
+  onDidChangeOfflineStatus?(status: OfflineStatus): void;
+  onDidForwardPaymentIntent?(paymentIntent: PaymentIntent.Type, error: StripeError): void;
+  onDidForwardingFailure?(error?: StripeError): void;
+
+  // Disconnection
+  onDidDisconnect?(reason?: Reader.DisconnectReason): void;
+
+  // Battery
+  onDidUpdateBatteryLevel?(result: Reader.BatteryLevel): void;
+  onDidReportLowBatteryWarning?(): void;
+
+  // Misc
+  onDidReportReaderEvent?(event: ReaderEvent): void;
+  onDidAcceptTermsOfService?(): void;
+};
+```
+
+### Example: responding to multiple events
+
+```tsx PaymentScreen.tsx
+const {
+  discoverReaders,
+  connectedReader,
+} = useStripeTerminal({
+  onUpdateDiscoveredReaders: (readers) => {
+    setDiscoveredReaders(readers);
+  },
+  onDidChangeConnectionStatus: (status) => {
+    setConnectionStatus(status);
+  },
+  onDidReportReaderSoftwareUpdateProgress: (progress) => {
+    setUpdateProgress(progress);
+  },
+  onDidFinishInstallingUpdate: ({ update, error }) => {
+    if (error) {
+      console.error('Update failed:', error);
+    } else {
+      console.log('Updated to version:', update?.deviceSoftwareVersion);
+    }
+  },
+});
+```
+
+---
+
+## withStripeTerminal (class components)
+
+For React class components, use the `withStripeTerminal` Higher-Order Component (HOC). It injects all of the same methods and state that `useStripeTerminal` returns as props.
+
+```tsx PaymentScreen.tsx
+import React from 'react';
+import {
+  withStripeTerminal,
+  WithStripeTerminalProps,
+  CHANGE_CONNECTION_STATUS,
+  Reader,
+} from '@stripe/stripe-terminal-react-native';
+
+class PaymentScreen extends React.Component<WithStripeTerminalProps> {
+  componentDidMount() {
+    this.props.initialize();
+
+    // Listen to events via the emitter
+    this.subscription = this.props.emitter.addListener(
+      CHANGE_CONNECTION_STATUS,
+      (status: Reader.ConnectionStatus) => {
+        console.log('Connection status changed:', status);
+      }
+    );
+
+    this.discoverReaders();
+  }
+
+  componentWillUnmount() {
+    this.subscription?.remove();
+  }
+
+  async discoverReaders() {
+    const { error } = await this.props.discoverReaders({
+      discoveryMethod: 'bluetoothScan',
+      simulated: true,
+    });
+    if (error) {
+      console.error('Discovery error:', error);
+    }
+  }
+
+  render() {
+    return <View />;
+  }
+}
+
+export default withStripeTerminal(PaymentScreen);
+```
+
+<Note>
+  When using the HOC, you listen to SDK events via `props.emitter.addListener(EVENT_NAME, handler)` rather than passing callbacks to the hook. See the exported event name constants (e.g., `CHANGE_CONNECTION_STATUS`, `UPDATE_DISCOVERED_READERS`) from `@stripe/stripe-terminal-react-native`.
+</Note>
+
+### Available event name constants
+
+The following constants are exported and can be used with `emitter.addListener`:
+
+- `FETCH_TOKEN_PROVIDER`
+- `CHANGE_CONNECTION_STATUS`
+- `CHANGE_PAYMENT_STATUS`
+- `FINISH_DISCOVERING_READERS`
+- `FINISH_INSTALLING_UPDATE`
+- `REQUEST_READER_DISPLAY_MESSAGE`
+- `REQUEST_READER_INPUT`
+- `REPORT_AVAILABLE_UPDATE`
+- `REPORT_UPDATE_PROGRESS`
+- `START_INSTALLING_UPDATE`
+- `UPDATE_DISCOVERED_READERS`
+- `START_READER_RECONNECT`
+- `READER_RECONNECT_SUCCEED`
+- `READER_RECONNECT_FAIL`
+- `CHANGE_OFFLINE_STATUS`
+- `FORWARD_PAYMENT_INTENT`
+- `REPORT_FORWARDING_ERROR`

@@ -1,0 +1,516 @@
+---
+title: 'SetupIntent Types'
+description: 'TypeScript types for creating, collecting, and confirming Stripe Terminal setup intents and processing refunds.'
+---
+
+## `SetupIntent.Type`
+
+Represents a Stripe SetupIntent as returned by the Terminal SDK.
+
+<ResponseField name="id" type="string" required>
+  The SetupIntent's unique identifier.
+</ResponseField>
+
+<ResponseField name="sdkUuid" type="string" required>
+  A UUID assigned by the SDK to uniquely identify this SetupIntent locally.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  Whether this SetupIntent was created in live mode.
+</ResponseField>
+
+<ResponseField name="application" type="string">
+  ID of the Connect application that created the SetupIntent.
+</ResponseField>
+
+<ResponseField name="cancellationReason" type="string">
+  Reason the SetupIntent was canceled.
+</ResponseField>
+
+<ResponseField name="clientSecret" type="string">
+  The client secret of this SetupIntent.
+</ResponseField>
+
+<ResponseField name="created" type="string">
+  ISO 8601 timestamp of when the SetupIntent was created.
+</ResponseField>
+
+<ResponseField name="customer" type="string">
+  ID of the customer associated with this SetupIntent.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  An arbitrary string attached to the SetupIntent.
+</ResponseField>
+
+<ResponseField name="lastSetupError" type="ApiErrorInformation">
+  Details of the most recent setup error. See [`ApiErrorInformation`](/api/types/errors#apierrorinformation).
+</ResponseField>
+
+<ResponseField name="latestAttempt" type="SetupIntent.SetupAttempt">
+  The most recent setup attempt. See [`SetupIntent.SetupAttempt`](#setupintent-setupattempt).
+</ResponseField>
+
+<ResponseField name="mandate" type="string">
+  ID of the mandate created by this SetupIntent.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata.
+</ResponseField>
+
+<ResponseField name="nextAction" type="NextAction">
+  Details of the next action required to complete the setup.
+</ResponseField>
+
+<ResponseField name="onBehalfOf" type="string">
+  The Stripe account ID on whose behalf the setup is made.
+</ResponseField>
+
+<ResponseField name="paymentMethod" type="PaymentMethod.Type">
+  The PaymentMethod attached to this SetupIntent.
+</ResponseField>
+
+<ResponseField name="paymentMethodId" type="string">
+  ID of the PaymentMethod.
+</ResponseField>
+
+<ResponseField name="paymentMethodOptions" type="PaymentMethodOptions">
+  Options for the payment method.
+</ResponseField>
+
+<ResponseField name="paymentMethodTypes" type="string[]">
+  List of allowed payment method types.
+</ResponseField>
+
+<ResponseField name="singleUseMandate" type="string">
+  ID of the single-use mandate created by this SetupIntent.
+</ResponseField>
+
+<ResponseField name="status" type="SetupIntent.Status">
+  The current status of the SetupIntent. See [`SetupIntent.Status`](#setupintent-status).
+</ResponseField>
+
+<ResponseField name="usage" type="SetupIntent.Usage">
+  Intended usage of the payment method: `offSession` or `onSession`.
+</ResponseField>
+
+---
+
+## `SetupIntent.Status`
+
+The current state of a SetupIntent.
+
+```typescript
+type Status =
+  | 'canceled'
+  | 'processing'
+  | 'requiresAction'
+  | 'requiresConfirmation'
+  | 'requiresPaymentMethod'
+  | 'succeeded'
+  | 'unknown';
+```
+
+| Value | Description |
+|-------|-------------|
+| `canceled` | The SetupIntent was canceled |
+| `processing` | Setup is being processed |
+| `requiresAction` | Further action is required |
+| `requiresConfirmation` | Awaiting confirmation |
+| `requiresPaymentMethod` | No payment method has been attached yet |
+| `succeeded` | Setup completed successfully |
+| `unknown` | Status cannot be determined |
+
+---
+
+## `SetupIntent.SetupAttempt`
+
+Details about a single attempt to set up a payment method.
+
+<ResponseField name="id" type="string" required>
+  The setup attempt's unique identifier.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  Whether the attempt was made in live mode.
+</ResponseField>
+
+<ResponseField name="status" type="string" required>
+  The status of this setup attempt.
+</ResponseField>
+
+<ResponseField name="paymentMethodDetails" type="SetupIntent.SetupAttemptPaymentMethodDetails" required>
+  Details about the payment method used in this attempt. See [`SetupAttemptPaymentMethodDetails`](#setupintent-setupattemptpaymentmethoddetails).
+</ResponseField>
+
+<ResponseField name="applicationId" type="string">
+  ID of the Connect application.
+</ResponseField>
+
+<ResponseField name="created" type="string">
+  ISO 8601 timestamp of when the attempt was created.
+</ResponseField>
+
+<ResponseField name="customer" type="string">
+  ID of the customer associated with this attempt.
+</ResponseField>
+
+<ResponseField name="onBehalfOfId" type="string">
+  ID of the Stripe account on whose behalf the attempt is made.
+</ResponseField>
+
+<ResponseField name="paymentMethodId" type="string">
+  ID of the payment method used.
+</ResponseField>
+
+<ResponseField name="setupIntentId" type="string">
+  ID of the parent SetupIntent.
+</ResponseField>
+
+<ResponseField name="usage" type="SetupIntent.Usage">
+  Intended usage: `offSession` or `onSession`.
+</ResponseField>
+
+---
+
+## `SetupIntent.SetupAttemptPaymentMethodDetails`
+
+Payment method details captured during a setup attempt.
+
+<ResponseField name="type" type="PaymentMethodType" required>
+  The payment method type.
+</ResponseField>
+
+<ResponseField name="cardPresent" type="SetupIntent.SetupAttemptCardPresentDetails" required>
+  Card-present details. See [`SetupAttemptCardPresentDetails`](#setupintent-setupattemptcardpresentdetails).
+</ResponseField>
+
+<ResponseField name="interacPresent" type="SetupIntent.SetupAttemptCardPresentDetails" required>
+  Interac-present details.
+</ResponseField>
+
+---
+
+## `SetupIntent.SetupAttemptCardPresentDetails`
+
+Card details captured during a setup attempt.
+
+<ResponseField name="emvAuthData" type="string" required>
+  Raw EMV authorization data.
+</ResponseField>
+
+<ResponseField name="generatedCard" type="string" required>
+  ID of the generated card payment method.
+</ResponseField>
+
+---
+
+## `CreateSetupIntentParams`
+
+Parameters for creating a new SetupIntent.
+
+<ResponseField name="customer" type="string">
+  ID of the customer to associate with this SetupIntent.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  An arbitrary description for the SetupIntent.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata.
+</ResponseField>
+
+<ResponseField name="onBehalfOf" type="string">
+  The Stripe account ID on whose behalf the setup is made.
+</ResponseField>
+
+<ResponseField name="paymentMethodTypes" type="string[]">
+  List of allowed payment method types.
+</ResponseField>
+
+<ResponseField name="usage" type="string">
+  Intended usage of the payment method: `off_session` or `on_session`.
+</ResponseField>
+
+---
+
+## `CollectSetupIntentPaymentMethodParams`
+
+Parameters for collecting a payment method for a SetupIntent.
+
+<ResponseField name="setupIntent" type="SetupIntent.Type" required>
+  The SetupIntent to collect a payment method for.
+</ResponseField>
+
+<ResponseField name="allowRedisplay" type="AllowRedisplay">
+  Controls whether the payment method can be redisplayed in future sessions. See [`AllowRedisplay`](/api/types/payment-intent#allowredisplay).
+</ResponseField>
+
+<ResponseField name="customerCancellation" type="CustomerCancellation">
+  Controls whether the customer can cancel collection. See [`CustomerCancellation`](/api/types/payment-intent#customercancellation).
+</ResponseField>
+
+<ResponseField name="motoConfiguration" type="MotoConfiguration">
+  MOTO payment configuration. See [`MotoConfiguration`](/api/types/payment-intent#motoconfiguration).
+</ResponseField>
+
+<ResponseField name="collectionReason" type="CollectionReason">
+  The reason for collecting the payment method. See [`CollectionReason`](#collectionreason).
+</ResponseField>
+
+---
+
+## `ProcessSetupIntentParams`
+
+Parameters for processing a SetupIntent (collect and confirm in one call).
+
+<ResponseField name="setupIntent" type="SetupIntent.Type" required>
+  The SetupIntent to process.
+</ResponseField>
+
+<ResponseField name="allowRedisplay" type="AllowRedisplay">
+  Redisplay control.
+</ResponseField>
+
+<ResponseField name="customerCancellation" type="CustomerCancellation">
+  Customer cancellation control.
+</ResponseField>
+
+<ResponseField name="motoConfiguration" type="MotoConfiguration">
+  MOTO configuration.
+</ResponseField>
+
+<ResponseField name="collectionReason" type="CollectionReason">
+  Reason for collecting the payment method.
+</ResponseField>
+
+---
+
+## `ConfirmSetupIntentMethodParams`
+
+Parameters for confirming a SetupIntent after collecting the payment method.
+
+<ResponseField name="setupIntent" type="SetupIntent.Type" required>
+  The SetupIntent to confirm.
+</ResponseField>
+
+---
+
+## `CancelSetupIntentMethodParams`
+
+Parameters for canceling an in-progress SetupIntent collection.
+
+<ResponseField name="setupIntent" type="SetupIntent.Type" required>
+  The SetupIntent to cancel.
+</ResponseField>
+
+---
+
+## `CollectionReason`
+
+The reason for collecting a payment method during setup.
+
+```typescript
+type CollectionReason = 'saveCard' | 'verify' | 'unspecified';
+```
+
+| Value | Description |
+|-------|-------------|
+| `saveCard` | Collecting the card for future use |
+| `verify` | Verifying the card without saving it for future use |
+| `unspecified` | No specific reason provided |
+
+---
+
+## `SetupIntentResultType`
+
+The return type of SetupIntent operations.
+
+```typescript
+type SetupIntentResultType =
+  | { setupIntent: SetupIntent.Type; error?: undefined }
+  | { setupIntent?: undefined; error: StripeError };
+```
+
+---
+
+## `Refund.Props`
+
+Represents a Stripe Refund as returned by the Terminal SDK.
+
+<ResponseField name="id" type="string" required>
+  The refund's unique identifier.
+</ResponseField>
+
+<ResponseField name="amount" type="number">
+  The amount refunded, in the smallest currency unit.
+</ResponseField>
+
+<ResponseField name="balanceTransaction" type="string">
+  ID of the balance transaction that describes the impact of this refund.
+</ResponseField>
+
+<ResponseField name="chargeId" type="string">
+  ID of the charge that was refunded.
+</ResponseField>
+
+<ResponseField name="created" type="string">
+  ISO 8601 timestamp of when the refund was created.
+</ResponseField>
+
+<ResponseField name="currency" type="string">
+  Three-letter ISO currency code.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  An arbitrary description for the refund.
+</ResponseField>
+
+<ResponseField name="failureBalanceTransaction" type="string">
+  ID of the balance transaction that reverses this refund if it fails.
+</ResponseField>
+
+<ResponseField name="failureReason" type="string">
+  Reason the refund failed.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata.
+</ResponseField>
+
+<ResponseField name="paymentIntentId" type="string">
+  ID of the PaymentIntent that was refunded.
+</ResponseField>
+
+<ResponseField name="paymentMethodDetails" type="PaymentMethodDetails">
+  Payment method details used for the refund.
+</ResponseField>
+
+<ResponseField name="reason" type="string">
+  Reason for the refund: `duplicate`, `fraudulent`, or `requested_by_customer`.
+</ResponseField>
+
+<ResponseField name="receiptNumber" type="string">
+  Transaction-specific information about the refund.
+</ResponseField>
+
+<ResponseField name="sourceTransferReversal" type="string">
+  ID of the transfer reversal created when this refund is applied to a destination charge.
+</ResponseField>
+
+<ResponseField name="status" type="Refund.Status">
+  The refund's current status.
+</ResponseField>
+
+<ResponseField name="transferReversal" type="string">
+  ID of the transfer reversal associated with this refund.
+</ResponseField>
+
+---
+
+## `Refund.Status`
+
+```typescript
+type Status = 'succeeded' | 'failed' | 'pending' | 'unknown';
+```
+
+---
+
+## `RefundParams`
+
+Union of `RefundParamsWithPaymentIntentId` and `RefundParamsWithChargeId`.
+
+```typescript
+type RefundParams = RefundParamsWithPaymentIntentId | RefundParamsWithChargeId;
+```
+
+### `RefundParamsWithPaymentIntentId`
+
+Refund parameters when referencing a PaymentIntent.
+
+<ResponseField name="paymentIntentId" type="string" required>
+  ID of the PaymentIntent to refund.
+</ResponseField>
+
+<ResponseField name="clientSecret" type="string" required>
+  The client secret of the PaymentIntent.
+</ResponseField>
+
+<ResponseField name="amount" type="number" required>
+  Amount to refund in the smallest currency unit.
+</ResponseField>
+
+<ResponseField name="currency" type="string" required>
+  Three-letter ISO currency code.
+</ResponseField>
+
+<ResponseField name="refundApplicationFee" type="boolean">
+  Whether to refund the application fee.
+</ResponseField>
+
+<ResponseField name="reverseTransfer" type="boolean">
+  Whether to reverse the transfer.
+</ResponseField>
+
+<ResponseField name="customerCancellation" type="CustomerCancellation">
+  Controls whether the customer can cancel the refund flow.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata.
+</ResponseField>
+
+### `RefundParamsWithChargeId`
+
+Refund parameters when referencing a Charge directly.
+
+<ResponseField name="chargeId" type="string" required>
+  ID of the Charge to refund.
+</ResponseField>
+
+<ResponseField name="amount" type="number" required>
+  Amount to refund in the smallest currency unit.
+</ResponseField>
+
+<ResponseField name="currency" type="string" required>
+  Three-letter ISO currency code.
+</ResponseField>
+
+<ResponseField name="refundApplicationFee" type="boolean">
+  Whether to refund the application fee.
+</ResponseField>
+
+<ResponseField name="reverseTransfer" type="boolean">
+  Whether to reverse the transfer.
+</ResponseField>
+
+<ResponseField name="customerCancellation" type="CustomerCancellation">
+  Controls whether the customer can cancel the refund flow.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata.
+</ResponseField>
+
+---
+
+## `ProcessRefundResultType`
+
+The return type of `processRefund()`.
+
+```typescript
+type ProcessRefundResultType = {
+  refund?: Refund.Props;
+  error?: StripeError;
+};
+```
+
+<ResponseField name="refund" type="Refund.Props">
+  The processed refund, if successful.
+</ResponseField>
+
+<ResponseField name="error" type="StripeError">
+  An error, if the refund failed.
+</ResponseField>

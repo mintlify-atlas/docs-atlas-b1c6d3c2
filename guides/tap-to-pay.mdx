@@ -1,0 +1,238 @@
+---
+title: 'Tap to Pay'
+description: 'Accept in-person payments using the device NFC hardware — no external reader required.'
+---
+
+Tap to Pay lets you accept contactless payments directly on a supported iPhone or Android device. No external card reader is required. The device acts as the payment terminal using its built-in NFC hardware.
+
+<Note>
+  Tap to Pay requires a compatible device. Check device support with `supportsReadersOfType` before attempting to discover or connect.
+</Note>
+
+## Check device compatibility
+
+```typescript
+import type { Reader } from '@stripe/stripe-terminal-react-native';
+
+const { supportsReadersOfType } = useStripeTerminal();
+
+const { readerSupportResult, error } = await supportsReadersOfType({
+  deviceType: 'tapToPay',
+  simulated: false,
+  discoveryMethod: 'tapToPay',
+});
+
+if (error || !readerSupportResult) {
+  // Device does not support Tap to Pay — show an appropriate message
+  console.warn('Tap to Pay not supported on this device');
+  return;
+}
+```
+
+## Discover and connect
+
+<Tabs>
+  <Tab title="iOS">
+    ```typescript
+    import type {
+      ConnectTapToPayParams,
+      Reader,
+    } from '@stripe/stripe-terminal-react-native';
+
+    const { discoverReaders, connectReader } = useStripeTerminal({
+      onUpdateDiscoveredReaders: async (readers) => {
+        if (readers.length === 0) return;
+
+        // Connect to the first discovered Tap to Pay reader
+        const { reader, error } = await connectReader({
+          discoveryMethod: 'tapToPay',
+          reader: readers[0]!,
+          locationId: 'tml_location_id',          // required
+          merchantDisplayName: 'My Store',
+          tosAcceptancePermitted: true,
+          autoReconnectOnUnexpectedDisconnect: true,
+        } satisfies ConnectTapToPayParams);
+
+        if (error) {
+          console.error('Connect failed:', error.message);
+        }
+      },
+      onDidAcceptTermsOfService: () => {
+        // Called when the user accepts the Tap to Pay Terms of Service on iOS
+        console.log('Terms of service accepted');
+      },
+    });
+
+    await discoverReaders({
+      discoveryMethod: 'tapToPay',
+      simulated: false,
+    });
+    ```
+
+    <Note>
+      `tosAcceptancePermitted: true` allows the SDK to present the Terms of Service dialog to the user. Set it to `false` if you are handling ToS acceptance yourself.
+    </Note>
+  </Tab>
+  <Tab title="Android">
+    ```typescript
+    import type {
+      ConnectTapToPayParams,
+      Reader,
+    } from '@stripe/stripe-terminal-react-native';
+
+    const { discoverReaders, connectReader } = useStripeTerminal({
+      onUpdateDiscoveredReaders: async (readers) => {
+        if (readers.length === 0) return;
+
+        const { reader, error } = await connectReader({
+          discoveryMethod: 'tapToPay',
+          reader: readers[0]!,
+          locationId: 'tml_location_id',
+          merchantDisplayName: 'My Store',
+          tosAcceptancePermitted: true,
+          autoReconnectOnUnexpectedDisconnect: true,
+        } satisfies ConnectTapToPayParams);
+
+        if (error) {
+          console.error('Connect failed:', error.message);
+        }
+      },
+    });
+
+    await discoverReaders({
+      discoveryMethod: 'tapToPay',
+      simulated: false,
+    });
+    ```
+  </Tab>
+</Tabs>
+
+## EasyConnect for Tap to Pay
+
+Use `easyConnect` to discover and connect in a single call without managing the discovery lifecycle manually.
+
+```typescript
+import type { EasyConnectTapToPayParams } from '@stripe/stripe-terminal-react-native';
+
+const { easyConnect } = useStripeTerminal();
+
+const { reader, error } = await easyConnect({
+  discoveryMethod: 'tapToPay',
+  simulated: false,
+  locationId: 'tml_location_id',
+  merchantDisplayName: 'My Store',
+  tosAcceptancePermitted: true,
+  autoReconnectOnUnexpectedDisconnect: true,
+} satisfies EasyConnectTapToPayParams);
+
+if (error) {
+  console.error('EasyConnect failed:', error.message);
+  return;
+}
+
+console.log('Connected to Tap to Pay reader');
+```
+
+## Customise the UX (Android only)
+
+On Android, use `setTapToPayUxConfiguration` to customise the appearance of the Tap to Pay payment screen.
+
+<Note>
+  `setTapToPayUxConfiguration` is Android-only. Calling it on iOS returns an `UNSUPPORTED_OPERATION` error.
+</Note>
+
+```typescript
+import {
+  useStripeTerminal,
+  DarkMode,
+} from '@stripe/stripe-terminal-react-native';
+import type { TapToPayUxConfiguration } from '@stripe/stripe-terminal-react-native';
+
+const { setTapToPayUxConfiguration } = useStripeTerminal();
+
+const { error } = await setTapToPayUxConfiguration({
+  darkMode: DarkMode.SYSTEM,   // DarkMode.DARK | DarkMode.LIGHT | DarkMode.SYSTEM
+  colors: {
+    primary: '#543cfc',
+    success: '#22c55e',
+    error: '#ef4444',
+  },
+  tapZone: {
+    indicator: 'default',
+  },
+} satisfies TapToPayUxConfiguration);
+```
+
+### TapZone variants
+
+Control where the NFC tap indicator appears on screen.
+
+| `indicator` | Extra params | Description |
+|---|---|---|
+| `default` | — | System default placement. |
+| `above` | `bias?: number` | Above centre, with optional vertical bias. |
+| `below` | `bias?: number` | Below centre, with optional vertical bias. |
+| `front` | `xBias?: number`, `yBias?: number` | Front face of the device, with optional x/y bias. |
+| `behind` | `xBias?: number`, `yBias?: number` | Back face of the device, with optional x/y bias. |
+| `left` | `bias?: number` | Left of centre, with optional bias. |
+| `right` | `bias?: number` | Right of centre, with optional bias. |
+
+```typescript
+// Example: tap zone below centre with a bias offset
+await setTapToPayUxConfiguration({
+  tapZone: {
+    indicator: 'below',
+    bias: 0.3,
+  },
+});
+
+// Example: custom position on the front face
+await setTapToPayUxConfiguration({
+  tapZone: {
+    indicator: 'front',
+    xBias: 0.1,
+    yBias: -0.2,
+  },
+});
+```
+
+### DarkMode values
+
+```typescript
+import { DarkMode } from '@stripe/stripe-terminal-react-native';
+
+// DarkMode.DARK   — always dark
+// DarkMode.LIGHT  — always light
+// DarkMode.SYSTEM — follow the device setting
+```
+
+## Handle unsupported devices
+
+If `supportsReadersOfType` returns `false`, or if a `TAP_TO_PAY_UNSUPPORTED_DEVICE` error is returned during connection, show a message explaining that the device is not compatible.
+
+```typescript
+const { reader, error } = await connectReader({ ... });
+
+if (error) {
+  if (error.code === 'TAP_TO_PAY_UNSUPPORTED_DEVICE') {
+    Alert.alert(
+      'Device not supported',
+      'Tap to Pay requires a compatible NFC-enabled device. Please use a supported device or connect an external card reader.',
+    );
+  } else {
+    console.error('Connection error:', error.message);
+  }
+}
+```
+
+## ConnectTapToPayParams reference
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `discoveryMethod` | `'tapToPay'` | Yes | Must be `'tapToPay'`. |
+| `reader` | `Reader.Type` | Yes | The reader object from discovery. |
+| `locationId` | `string` | Yes | Stripe location ID to associate with this reader. |
+| `merchantDisplayName` | `string` | No | Business name shown to the customer during payment. |
+| `tosAcceptancePermitted` | `boolean` | No | Whether the SDK may present the Terms of Service dialog. |
+| `autoReconnectOnUnexpectedDisconnect` | `boolean` | No | Automatically retry connection on unexpected disconnects. |
+| `onBehalfOf` | `string` | No | Connected account ID for Stripe Connect platforms. |

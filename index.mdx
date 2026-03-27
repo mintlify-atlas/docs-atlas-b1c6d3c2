@@ -1,97 +1,69 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "Stripe Terminal React Native"
+description: "Accept in-person card payments in your React Native app using pre-certified Stripe Terminal readers."
 ---
 
-## Setting up
+The Stripe Terminal React Native SDK lets you connect your React Native app to pre-certified card readers and drive a fully customized in-store checkout flow. Built on Stripe's payments network, it unifies your online and offline payment channels in a single integration.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="rocket" href="/quickstart">
+    Install the SDK and collect your first in-person payment in minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Requirements" icon="list-check" href="/requirements">
+    Review platform requirements for iOS and Android before you begin.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Core Concepts" icon="lightbulb" href="/concepts/provider-and-hooks">
+    Understand the provider, hooks, and reader lifecycle at the heart of the SDK.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="API Reference" icon="code" href="/api/use-stripe-terminal">
+    Browse every method, parameter, and type exported by the SDK.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## How it works
 
-Everything you need to create world-class documentation.
+<Steps>
+  <Step title="Install and configure the SDK">
+    Add `@stripe/stripe-terminal-react-native` to your project and wrap your app in `StripeTerminalProvider` with a connection token endpoint.
+  </Step>
+  <Step title="Discover and connect a reader">
+    Call `discoverReaders` to find nearby devices over Bluetooth, USB, Internet, or Tap to Pay, then call `connectReader` to establish a session.
+  </Step>
+  <Step title="Collect payment">
+    Create a `PaymentIntent` on your server, call `collectPaymentMethod` to read the card, then `confirmPaymentIntent` to complete the charge.
+  </Step>
+  <Step title="Handle the result">
+    Inspect the returned `PaymentIntent` for status and charge details, and handle any `StripeError` for a smooth customer experience.
+  </Step>
+</Steps>
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+## Key features
 
-## Need inspiration?
+<CardGroup cols={2}>
+  <Card title="Multiple connection methods" icon="bluetooth">
+    Connect via Bluetooth, USB, Internet, or use Tap to Pay on iPhone and Android — no external hardware required.
+  </Card>
+  <Card title="Offline payments" icon="wifi-slash">
+    Accept payments when connectivity is lost. The SDK queues transactions and forwards them automatically when back online.
+  </Card>
+  <Card title="Setup intents" icon="credit-card">
+    Save payment methods for future use by collecting and confirming a SetupIntent through the reader.
+  </Card>
+  <Card title="Collect custom inputs" icon="keyboard">
+    Display interactive forms on the reader screen to collect signatures, phone numbers, emails, and more.
+  </Card>
+  <Card title="EasyConnect" icon="bolt">
+    Use the simplified `easyConnect` API to skip manual discovery and connect in one call.
+  </Card>
+  <Card title="Reader updates" icon="arrow-up-to-line">
+    Detect, install, and track reader firmware updates directly from your app.
+  </Card>
+</CardGroup>
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+## Supported readers
+
+The SDK supports all pre-certified Stripe Terminal readers including the Stripe Reader S700, BBPOS WisePOS E, BBPOS WisePad 3, Stripe Reader M2, and Tap to Pay on iPhone/Android (no additional hardware required).
+
+<Note>
+  This SDK is in public preview. See the [GitHub repository](https://github.com/stripe/stripe-terminal-react-native) for release notes and to report issues.
+</Note>

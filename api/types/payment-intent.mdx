@@ -1,0 +1,1150 @@
+---
+title: 'PaymentIntent Types'
+description: 'TypeScript types for creating, collecting, and confirming Stripe Terminal payment intents.'
+---
+
+## `PaymentIntent.Type`
+
+Represents a Stripe PaymentIntent as returned by the Terminal SDK.
+
+<ResponseField name="id" type="string" required>
+  The PaymentIntent's unique identifier.
+</ResponseField>
+
+<ResponseField name="amount" type="number" required>
+  Amount intended to be collected, in the smallest currency unit (e.g., cents for USD).
+</ResponseField>
+
+<ResponseField name="currency" type="string" required>
+  Three-letter ISO currency code in lowercase.
+</ResponseField>
+
+<ResponseField name="captureMethod" type="string" required>
+  How the payment is captured: `automatic` or `manual`.
+</ResponseField>
+
+<ResponseField name="charges" type="Charge[]" required>
+  List of charges associated with this PaymentIntent. See [`Charge`](#charge).
+</ResponseField>
+
+<ResponseField name="created" type="string" required>
+  ISO 8601 timestamp of when the PaymentIntent was created.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  Whether the PaymentIntent was created in live mode.
+</ResponseField>
+
+<ResponseField name="sdkUuid" type="string" required>
+  A UUID assigned by the SDK to uniquely identify this PaymentIntent locally (used for offline reconciliation).
+</ResponseField>
+
+<ResponseField name="status" type="PaymentIntent.Status">
+  The PaymentIntent's current status. See [`PaymentIntent.Status`](#paymentintent-status).
+</ResponseField>
+
+<ResponseField name="amountCapturable" type="number">
+  Amount that can be captured from this PaymentIntent.
+</ResponseField>
+
+<ResponseField name="amountDetails" type="AmountDetails">
+  Breakdown of the amount, including tip, donation, and surcharge. See [`AmountDetails`](#amountdetails).
+</ResponseField>
+
+<ResponseField name="amountReceived" type="number">
+  Amount that was collected.
+</ResponseField>
+
+<ResponseField name="amountRequested" type="number">
+  The originally requested amount.
+</ResponseField>
+
+<ResponseField name="amountSurcharge" type="number">
+  The surcharge amount, if any.
+</ResponseField>
+
+<ResponseField name="amountTip" type="number">
+  The tip amount, if any.
+</ResponseField>
+
+<ResponseField name="applicationFeeAmount" type="number">
+  The amount of the application fee.
+</ResponseField>
+
+<ResponseField name="canceledAt" type="string">
+  ISO 8601 timestamp of when the PaymentIntent was canceled.
+</ResponseField>
+
+<ResponseField name="cancellationReason" type="string">
+  Reason the PaymentIntent was canceled.
+</ResponseField>
+
+<ResponseField name="clientSecret" type="string">
+  The client secret of this PaymentIntent.
+</ResponseField>
+
+<ResponseField name="confirmationMethod" type="string">
+  Confirmation method: `automatic` or `manual`.
+</ResponseField>
+
+<ResponseField name="customer" type="string">
+  ID of the Stripe Customer object associated with this PaymentIntent.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  An arbitrary string attached to the PaymentIntent.
+</ResponseField>
+
+<ResponseField name="lastPaymentError" type="ApiErrorInformation">
+  Details about the last payment error. See [`ApiErrorInformation`](/api/types/errors#apierrorinformation).
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Set of key-value pairs attached to the PaymentIntent.
+</ResponseField>
+
+<ResponseField name="nextAction" type="NextAction">
+  Details of the next action to complete the payment, if required.
+</ResponseField>
+
+<ResponseField name="offlineDetails" type="OfflineDetails">
+  Details about an offline payment. See [`OfflineDetails`](#offlinedetails).
+</ResponseField>
+
+<ResponseField name="onBehalfOf" type="string">
+  The Stripe account ID for which this payment is being collected.
+</ResponseField>
+
+<ResponseField name="paymentMethod" type="PaymentMethod.Type">
+  The PaymentMethod attached to this PaymentIntent. See [`PaymentMethod.Type`](#paymentmethod-type).
+</ResponseField>
+
+<ResponseField name="paymentMethodId" type="string">
+  The ID of the PaymentMethod.
+</ResponseField>
+
+<ResponseField name="paymentMethodOptions" type="PaymentMethodOptions">
+  Options for the PaymentMethod. See [`PaymentMethodOptions`](#paymentmethodoptions).
+</ResponseField>
+
+<ResponseField name="paymentMethodTypes" type="number[]">
+  List of payment method type codes allowed for this PaymentIntent.
+</ResponseField>
+
+<ResponseField name="receiptEmail" type="string">
+  Email address to send the receipt to.
+</ResponseField>
+
+<ResponseField name="setupFutureUsage" type="string">
+  Indicates how the PaymentMethod should be used for future payments: `off_session` or `on_session`.
+</ResponseField>
+
+<ResponseField name="statementDescriptor" type="string">
+  Statement descriptor shown on the customer's bank statement.
+</ResponseField>
+
+<ResponseField name="statementDescriptorSuffix" type="string">
+  Suffix appended to the statement descriptor.
+</ResponseField>
+
+<ResponseField name="transferGroup" type="string">
+  A string that identifies the resulting payment as part of a group.
+</ResponseField>
+
+---
+
+## `PaymentIntent.Status`
+
+The current state of a PaymentIntent.
+
+```typescript
+type Status =
+  | 'canceled'
+  | 'processing'
+  | 'requiresAction'
+  | 'requiresCapture'
+  | 'requiresConfirmation'
+  | 'requiresPaymentMethod'
+  | 'succeeded'
+  | 'unknown';
+```
+
+| Value | Description |
+|-------|-------------|
+| `canceled` | The PaymentIntent was canceled |
+| `processing` | Payment is being processed |
+| `requiresAction` | Further action is required (e.g., customer authentication) |
+| `requiresCapture` | Payment is authorized and awaiting capture |
+| `requiresConfirmation` | Awaiting confirmation |
+| `requiresPaymentMethod` | No payment method has been attached yet |
+| `succeeded` | Payment was successfully collected |
+| `unknown` | Status cannot be determined |
+
+---
+
+## `Charge`
+
+A charge attempt associated with a PaymentIntent.
+
+<ResponseField name="id" type="string" required>
+  The charge's unique identifier.
+</ResponseField>
+
+<ResponseField name="amount" type="number" required>
+  The amount charged, in the smallest currency unit.
+</ResponseField>
+
+<ResponseField name="amountRefunded" type="number" required>
+  The amount refunded.
+</ResponseField>
+
+<ResponseField name="captured" type="boolean" required>
+  Whether the charge was captured.
+</ResponseField>
+
+<ResponseField name="currency" type="string" required>
+  Three-letter ISO currency code.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  Whether the charge was made in live mode.
+</ResponseField>
+
+<ResponseField name="paid" type="boolean" required>
+  Whether the charge was paid.
+</ResponseField>
+
+<ResponseField name="refunded" type="boolean" required>
+  Whether the charge has been fully refunded.
+</ResponseField>
+
+<ResponseField name="applicationFee" type="string">
+  ID of the application fee associated with this charge.
+</ResponseField>
+
+<ResponseField name="applicationFeeAmount" type="number">
+  The application fee amount.
+</ResponseField>
+
+<ResponseField name="authorizationCode" type="string">
+  Authorization code for the charge.
+</ResponseField>
+
+<ResponseField name="balanceTransaction" type="string">
+  ID of the balance transaction that describes the impact of this charge.
+</ResponseField>
+
+<ResponseField name="calculatedStatementDescriptor" type="string">
+  The full statement descriptor sent to the card network.
+</ResponseField>
+
+<ResponseField name="created" type="string">
+  ISO 8601 timestamp of when the charge was created.
+</ResponseField>
+
+<ResponseField name="customer" type="string">
+  ID of the customer associated with this charge.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  Description of the charge.
+</ResponseField>
+
+<ResponseField name="generatedFrom" type="GeneratedFrom">
+  Details about the source that generated this charge.
+
+  <Expandable title="GeneratedFrom properties">
+    <ResponseField name="charge" type="string">
+      ID of the original charge.
+    </ResponseField>
+    <ResponseField name="paymentMethodDetails" type="PaymentMethodDetails">
+      Payment method details from the source charge.
+    </ResponseField>
+    <ResponseField name="setupAttempt" type="string">
+      ID of the setup attempt that generated this charge.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Set of key-value pairs attached to the charge.
+</ResponseField>
+
+<ResponseField name="onBehalfOf" type="string">
+  The Stripe account the charge was made on behalf of.
+</ResponseField>
+
+<ResponseField name="paymentIntentId" type="string">
+  ID of the PaymentIntent associated with this charge.
+</ResponseField>
+
+<ResponseField name="paymentMethodDetails" type="PaymentMethodDetails">
+  Details about the payment method used. See [`PaymentMethodDetails`](#paymentmethoddetails).
+</ResponseField>
+
+<ResponseField name="receiptEmail" type="string">
+  Email to which the receipt was sent.
+</ResponseField>
+
+<ResponseField name="receiptNumber" type="string">
+  Receipt number for this charge.
+</ResponseField>
+
+<ResponseField name="receiptUrl" type="string">
+  URL of the charge's receipt.
+</ResponseField>
+
+<ResponseField name="statementDescriptorSuffix" type="string">
+  Suffix on the statement descriptor.
+</ResponseField>
+
+<ResponseField name="status" type="string">
+  Status of the charge: `succeeded`, `pending`, or `failed`.
+</ResponseField>
+
+---
+
+## `PaymentMethodDetails`
+
+Details about the payment method used in a charge or refund.
+
+<ResponseField name="type" type="string" required>
+  The payment method type (e.g., `cardPresent`, `interacPresent`, `wechatPay`).
+</ResponseField>
+
+<ResponseField name="cardPresentDetails" type="CardPresentDetails">
+  Details for card-present payments. See [`CardPresentDetails`](#cardpresentdetails).
+</ResponseField>
+
+<ResponseField name="interacPresentDetails" type="CardPresentDetails">
+  Details for Interac-present payments (same shape as `CardPresentDetails`).
+</ResponseField>
+
+<ResponseField name="wechatPayDetails" type="WechatPayDetails">
+  Details for WeChat Pay payments. See [`WechatPayDetails`](#wechatpaydetails).
+</ResponseField>
+
+<ResponseField name="affirmDetails" type="AffirmDetails">
+  Details for Affirm payments. See [`AffirmDetails`](#affirmdetails).
+</ResponseField>
+
+<ResponseField name="paynowDetails" type="PaynowDetails">
+  Details for PayNow payments. See [`PaynowDetails`](#paynowdetails).
+</ResponseField>
+
+<ResponseField name="paypayDetails" type="PaypayDetails">
+  Details for PayPay payments. See [`PaypayDetails`](#paypaydeta).
+</ResponseField>
+
+<ResponseField name="cardDetails" type="CardDetails">
+  Details for card (not card-present) payments. See [`CardDetails`](#carddetails).
+</ResponseField>
+
+---
+
+## `CardPresentDetails`
+
+Details about a card-present transaction.
+
+<ResponseField name="last4" type="string" required>
+  Last four digits of the card number.
+</ResponseField>
+
+<ResponseField name="expMonth" type="string" required>
+  Card expiration month.
+</ResponseField>
+
+<ResponseField name="expYear" type="string" required>
+  Card expiration year.
+</ResponseField>
+
+<ResponseField name="funding" type="string" required>
+  Card funding type: `credit`, `debit`, `prepaid`, or `unknown`.
+</ResponseField>
+
+<ResponseField name="brand" type="string" required>
+  Card brand: e.g., `visa`, `mastercard`, `amex`.
+</ResponseField>
+
+<ResponseField name="preferredLocales" type="string[]" required>
+  List of preferred locales for the cardholder.
+</ResponseField>
+
+<ResponseField name="issuer" type="string" required>
+  The card issuer.
+</ResponseField>
+
+<ResponseField name="iin" type="string" required>
+  Issuer identification number (first 6 digits of the card).
+</ResponseField>
+
+<ResponseField name="network" type="string" required>
+  Card network (e.g., `visa`, `mastercard`).
+</ResponseField>
+
+<ResponseField name="description" type="string" required>
+  A human-readable description of the card.
+</ResponseField>
+
+<ResponseField name="wallet" type="Wallet" required>
+  Wallet details if the card was presented via a digital wallet. See [`Wallet`](#wallet).
+</ResponseField>
+
+<ResponseField name="cardholderName" type="string">
+  Name of the cardholder.
+</ResponseField>
+
+<ResponseField name="generatedCard" type="string">
+  ID of the generated card (used for saving the card).
+</ResponseField>
+
+<ResponseField name="receipt" type="ReceiptDetails">
+  EMV receipt data. See [`ReceiptDetails`](#receiptdetails).
+</ResponseField>
+
+<ResponseField name="emvAuthData" type="string">
+  Raw EMV authorization data.
+</ResponseField>
+
+<ResponseField name="country" type="string">
+  Two-letter country code of the card's issuing country.
+</ResponseField>
+
+<ResponseField name="location" type="string">
+  ID of the location where the payment was taken.
+</ResponseField>
+
+<ResponseField name="reader" type="string">
+  ID of the reader used for this payment.
+</ResponseField>
+
+---
+
+## `ReceiptDetails`
+
+EMV receipt data from a card-present transaction.
+
+<ResponseField name="accountType" type="string" required>
+  Account type used for the transaction.
+</ResponseField>
+
+<ResponseField name="applicationCryptogram" type="string" required>
+  The application cryptogram.
+</ResponseField>
+
+<ResponseField name="applicationPreferredName" type="string" required>
+  The application preferred name.
+</ResponseField>
+
+<ResponseField name="authorizationCode" type="string" required>
+  Authorization code from the issuer.
+</ResponseField>
+
+<ResponseField name="authorizationResponseCode" type="string" required>
+  Authorization response code.
+</ResponseField>
+
+<ResponseField name="cvm" type="string" required>
+  Cardholder verification method used.
+</ResponseField>
+
+<ResponseField name="dedicatedFileName" type="string" required>
+  EMV dedicated file name.
+</ResponseField>
+
+<ResponseField name="terminalVerificationResult" type="string" required>
+  Terminal verification result bytes.
+</ResponseField>
+
+<ResponseField name="transactionStatusInformation" type="string" required>
+  Transaction status information bytes.
+</ResponseField>
+
+---
+
+## `Wallet`
+
+Represents a digital wallet used to present a card.
+
+<ResponseField name="type" type="string" required>
+  The wallet type, e.g., `apple_pay`, `google_pay`, `samsung_pay`.
+</ResponseField>
+
+---
+
+## `WechatPayDetails`
+
+Details for a WeChat Pay transaction.
+
+<ResponseField name="location" type="string">
+  ID of the location where the payment occurred.
+</ResponseField>
+
+<ResponseField name="reader" type="string">
+  ID of the reader used.
+</ResponseField>
+
+<ResponseField name="transactionId" type="string">
+  WeChat Pay transaction ID.
+</ResponseField>
+
+---
+
+## `AffirmDetails`
+
+Details for an Affirm transaction.
+
+<ResponseField name="location" type="string">
+  ID of the location where the payment occurred.
+</ResponseField>
+
+<ResponseField name="reader" type="string">
+  ID of the reader used.
+</ResponseField>
+
+<ResponseField name="transactionId" type="string">
+  Affirm transaction ID.
+</ResponseField>
+
+---
+
+## `PaynowDetails`
+
+Details for a PayNow transaction.
+
+<ResponseField name="location" type="string">
+  ID of the location where the payment occurred.
+</ResponseField>
+
+<ResponseField name="reader" type="string">
+  ID of the reader used.
+</ResponseField>
+
+<ResponseField name="reference" type="string">
+  PayNow reference number.
+</ResponseField>
+
+---
+
+## `PaypayDetails`
+
+Details for a PayPay transaction.
+
+<ResponseField name="location" type="string">
+  ID of the location where the payment occurred.
+</ResponseField>
+
+<ResponseField name="reader" type="string">
+  ID of the reader used.
+</ResponseField>
+
+<ResponseField name="reference" type="string">
+  PayPay reference number.
+</ResponseField>
+
+---
+
+## `CardDetails`
+
+Details about a card payment method (not card-present).
+
+<ResponseField name="brand" type="string">
+  Card brand.
+</ResponseField>
+
+<ResponseField name="country" type="string">
+  Two-letter country code of the issuing country.
+</ResponseField>
+
+<ResponseField name="expMonth" type="number">
+  Expiration month.
+</ResponseField>
+
+<ResponseField name="expYear" type="number">
+  Expiration year.
+</ResponseField>
+
+<ResponseField name="funding" type="string">
+  Card funding type.
+</ResponseField>
+
+<ResponseField name="generatedFrom" type="GeneratedFrom">
+  Details about the source that generated this card.
+</ResponseField>
+
+<ResponseField name="last4" type="string">
+  Last four digits of the card number.
+</ResponseField>
+
+---
+
+## `CreatePaymentIntentParams`
+
+Parameters for creating a new PaymentIntent.
+
+<ResponseField name="amount" type="number" required>
+  Amount to collect in the smallest currency unit.
+</ResponseField>
+
+<ResponseField name="currency" type="string" required>
+  Three-letter ISO currency code.
+</ResponseField>
+
+<ResponseField name="captureMethod" type="'automatic' | 'manual'">
+  How the payment is captured. Defaults to `automatic`.
+</ResponseField>
+
+<ResponseField name="setupFutureUsage" type="'off_session' | 'on_session'">
+  Indicates the intended future usage of the payment method.
+</ResponseField>
+
+<ResponseField name="onBehalfOf" type="string">
+  The Stripe account ID on whose behalf the charge is made.
+</ResponseField>
+
+<ResponseField name="transferDataDestination" type="string">
+  The destination account for the transfer.
+</ResponseField>
+
+<ResponseField name="applicationFeeAmount" type="number">
+  Amount of the application fee.
+</ResponseField>
+
+<ResponseField name="description" type="string">
+  An arbitrary description for the PaymentIntent.
+</ResponseField>
+
+<ResponseField name="statementDescriptor" type="string">
+  Statement descriptor shown on the customer's bank statement (up to 22 characters).
+</ResponseField>
+
+<ResponseField name="statementDescriptorSuffix" type="string">
+  Suffix appended to the statement descriptor.
+</ResponseField>
+
+<ResponseField name="receiptEmail" type="string">
+  Email address to send the receipt to.
+</ResponseField>
+
+<ResponseField name="customer" type="string">
+  ID of the customer to associate with this PaymentIntent.
+</ResponseField>
+
+<ResponseField name="transferGroup" type="string">
+  A string that identifies the resulting payment as part of a group.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata.
+</ResponseField>
+
+<ResponseField name="paymentMethodOptions" type="PaymentMethodOptions">
+  Additional options for the payment method. See [`PaymentMethodOptions`](#paymentmethodoptions).
+</ResponseField>
+
+<ResponseField name="offlineBehavior" type="'prefer_online' | 'require_online' | 'force_offline'">
+  Controls offline payment behavior.
+</ResponseField>
+
+<ResponseField name="paymentMethodTypes" type="string[]">
+  List of allowed payment method types. *(iOS only)*
+</ResponseField>
+
+---
+
+## `PaymentMethodOptions`
+
+Additional options for the payment method on a PaymentIntent.
+
+<ResponseField name="requestedPriority" type="string" required>
+  The requested priority for the payment method.
+</ResponseField>
+
+<ResponseField name="requestExtendedAuthorization" type="boolean">
+  Request extended authorization.
+</ResponseField>
+
+<ResponseField name="requestIncrementalAuthorizationSupport" type="boolean">
+  Request incremental authorization support.
+</ResponseField>
+
+<ResponseField name="requestPartialAuthorization" type="string">
+  Request partial authorization.
+</ResponseField>
+
+<ResponseField name="captureMethod" type="'manual' | 'manual_preferred'">
+  Override the capture method for this payment method.
+</ResponseField>
+
+---
+
+## `CollectPaymentMethodParams`
+
+Parameters for collecting a payment method from a customer.
+
+<ResponseField name="paymentIntent" type="PaymentIntent.Type" required>
+  The PaymentIntent to collect a payment method for.
+</ResponseField>
+
+<ResponseField name="skipTipping" type="boolean">
+  When `true`, skips the tipping screen.
+</ResponseField>
+
+<ResponseField name="tipEligibleAmount" type="number">
+  The portion of the amount eligible for tipping.
+</ResponseField>
+
+<ResponseField name="updatePaymentIntent" type="boolean">
+  Whether to update the PaymentIntent on the server before collecting.
+</ResponseField>
+
+<ResponseField name="customerCancellation" type="CustomerCancellation">
+  Controls whether the customer can cancel the payment collection. See [`CustomerCancellation`](#customercancellation).
+</ResponseField>
+
+<ResponseField name="requestDynamicCurrencyConversion" type="boolean">
+  Request dynamic currency conversion (DCC) if available.
+</ResponseField>
+
+<ResponseField name="surchargeNotice" type="string">
+  Notice text to display when a surcharge applies.
+</ResponseField>
+
+<ResponseField name="allowRedisplay" type="AllowRedisplay">
+  Controls whether the collected payment method may be redisplayed to the customer. See [`AllowRedisplay`](#allowredisplay).
+</ResponseField>
+
+<ResponseField name="motoConfiguration" type="MotoConfiguration">
+  Configuration for Mail Order / Telephone Order (MOTO) payments. See [`MotoConfiguration`](#motoconfiguration).
+</ResponseField>
+
+---
+
+## `ConfirmPaymentMethodParams`
+
+Parameters for confirming a collected payment method.
+
+<ResponseField name="paymentIntent" type="PaymentIntent.Type" required>
+  The PaymentIntent to confirm.
+</ResponseField>
+
+<ResponseField name="surcharge" type="Surcharge">
+  Surcharge details to apply at confirmation. See [`Surcharge`](#surcharge).
+</ResponseField>
+
+<ResponseField name="returnUrl" type="string">
+  URL to redirect to after completing the action (used for redirect-based payment methods).
+</ResponseField>
+
+---
+
+## `ProcessPaymentIntentParams`
+
+Combined parameters for collecting and confirming a payment in a single call. Includes all fields from both [`CollectPaymentMethodParams`](#collectpaymentmethodparams) and [`ConfirmPaymentMethodParams`](#confirmpaymentmethodparams).
+
+<ResponseField name="paymentIntent" type="PaymentIntent.Type" required>
+  The PaymentIntent to process.
+</ResponseField>
+
+<ResponseField name="skipTipping" type="boolean">
+  Skip the tipping screen.
+</ResponseField>
+
+<ResponseField name="tipEligibleAmount" type="number">
+  Amount eligible for tipping.
+</ResponseField>
+
+<ResponseField name="updatePaymentIntent" type="boolean">
+  Update the PaymentIntent on the server before processing.
+</ResponseField>
+
+<ResponseField name="customerCancellation" type="CustomerCancellation">
+  Customer cancellation control. See [`CustomerCancellation`](#customercancellation).
+</ResponseField>
+
+<ResponseField name="requestDynamicCurrencyConversion" type="boolean">
+  Request DCC if available.
+</ResponseField>
+
+<ResponseField name="surchargeNotice" type="string">
+  Surcharge notice text.
+</ResponseField>
+
+<ResponseField name="allowRedisplay" type="AllowRedisplay">
+  Allow-redisplay setting. See [`AllowRedisplay`](#allowredisplay).
+</ResponseField>
+
+<ResponseField name="motoConfiguration" type="MotoConfiguration">
+  MOTO configuration. See [`MotoConfiguration`](#motoconfiguration).
+</ResponseField>
+
+<ResponseField name="surcharge" type="Surcharge">
+  Surcharge to apply. See [`Surcharge`](#surcharge).
+</ResponseField>
+
+<ResponseField name="returnUrl" type="string">
+  Return URL for redirect-based payment methods.
+</ResponseField>
+
+---
+
+## `CancelPaymentMethodParams`
+
+Parameters for canceling an in-progress payment method collection.
+
+<ResponseField name="paymentIntent" type="PaymentIntent.Type" required>
+  The PaymentIntent whose collection should be canceled.
+</ResponseField>
+
+---
+
+## `Surcharge`
+
+Surcharge details applied at payment confirmation.
+
+<ResponseField name="amount" type="number" required>
+  The surcharge amount in the smallest currency unit.
+</ResponseField>
+
+<ResponseField name="consent" type="SurchargeConsent | null">
+  Consent details for the surcharge. See [`SurchargeConsent`](#surchargeconsent).
+</ResponseField>
+
+---
+
+## `SurchargeConsent`
+
+Details of customer consent for a surcharge.
+
+<ResponseField name="notice" type="string" required>
+  The notice text shown to the customer.
+</ResponseField>
+
+<ResponseField name="collection" type="SurchargeConsentCollection" required>
+  Whether surcharge consent collection is enabled or disabled. See [`SurchargeConsentCollection`](#surchargeconsentcollection).
+</ResponseField>
+
+---
+
+## `SurchargeConsentCollection`
+
+```typescript
+type SurchargeConsentCollection = 'disabled' | 'enabled';
+```
+
+---
+
+## `MotoConfiguration`
+
+Configuration for Mail Order / Telephone Order (MOTO) payments.
+
+<ResponseField name="skipCvc" type="boolean">
+  When `true`, skips CVC collection for MOTO payments.
+</ResponseField>
+
+---
+
+## `AllowRedisplay`
+
+Controls whether a collected payment method can be shown to the customer again in future sessions.
+
+```typescript
+type AllowRedisplay = 'always' | 'limited' | 'unspecified';
+```
+
+| Value | Description |
+|-------|-------------|
+| `always` | The payment method can always be redisplayed |
+| `limited` | The payment method can be redisplayed only in limited contexts |
+| `unspecified` | No redisplay preference specified |
+
+---
+
+## `CustomerCancellation`
+
+Controls whether the customer can cancel the payment collection flow.
+
+```typescript
+type CustomerCancellation = 'enableIfAvailable' | 'disableIfAvailable' | 'unspecified';
+```
+
+| Value | Description |
+|-------|-------------|
+| `enableIfAvailable` | Show a cancel button if the hardware supports it |
+| `disableIfAvailable` | Hide the cancel button if the hardware supports it |
+| `unspecified` | Use the platform default |
+
+---
+
+## `PaymentStatus`
+
+The current state of the Terminal SDK's payment collection flow.
+
+```typescript
+type PaymentStatus = 'notReady' | 'ready' | 'processing' | 'waitingForInput';
+```
+
+| Value | Description |
+|-------|-------------|
+| `notReady` | The SDK is not ready to collect payments |
+| `ready` | Ready to collect a payment |
+| `processing` | A payment is being processed |
+| `waitingForInput` | Waiting for customer input |
+
+---
+
+## `OfflineDetails`
+
+Details about a payment that was captured while offline.
+
+<ResponseField name="storedAtMs" type="string" required>
+  Timestamp (in milliseconds) of when the payment was stored offline.
+</ResponseField>
+
+<ResponseField name="requiresUpload" type="boolean" required>
+  Whether the payment still needs to be forwarded to Stripe.
+</ResponseField>
+
+<ResponseField name="cardPresentDetails" type="OfflineCardPresentDetails" required>
+  Card details captured offline. See [`OfflineCardPresentDetails`](#offlinecardpresentdetails).
+</ResponseField>
+
+<ResponseField name="amountDetails" type="AmountDetails" required>
+  Amount breakdown. See [`AmountDetails`](#amountdetails).
+</ResponseField>
+
+---
+
+## `OfflineCardPresentDetails`
+
+Card details captured during an offline payment.
+
+<ResponseField name="brand" type="string" required>
+  Card brand.
+</ResponseField>
+
+<ResponseField name="cardholderName" type="string" required>
+  Cardholder name.
+</ResponseField>
+
+<ResponseField name="expMonth" type="number" required>
+  Card expiration month.
+</ResponseField>
+
+<ResponseField name="expYear" type="number" required>
+  Card expiration year.
+</ResponseField>
+
+<ResponseField name="last4" type="string" required>
+  Last four digits of the card.
+</ResponseField>
+
+<ResponseField name="readMethod" type="string" required>
+  How the card was read (e.g., `contactEmv`, `contactlessEmv`).
+</ResponseField>
+
+<ResponseField name="receiptDetails" type="ReceiptDetails" required>
+  EMV receipt data.
+</ResponseField>
+
+---
+
+## `AmountDetails`
+
+Breakdown of the payment amount.
+
+<ResponseField name="tip" type="Amount">
+  Tip amount details.
+</ResponseField>
+
+<ResponseField name="donation" type="Amount">
+  Donation amount details.
+</ResponseField>
+
+<ResponseField name="surcharge" type="Amount">
+  Surcharge amount details.
+</ResponseField>
+
+---
+
+## `Amount`
+
+<ResponseField name="amount" type="number">
+  The amount in the smallest currency unit.
+</ResponseField>
+
+---
+
+## `PaymentIntentResultType`
+
+The return type of payment intent operations. Can carry a `paymentIntent`, an `error`, or both (when the intent is created offline but confirmation fails).
+
+```typescript
+type PaymentIntentResultType =
+  | { paymentIntent: PaymentIntent.Type; error?: undefined }
+  | { paymentIntent?: undefined; error: StripeError }
+  | { paymentIntent: PaymentIntent.Type; error: StripeError };
+```
+
+<Note>
+  The third variant — where both `paymentIntent` and `error` are present — occurs in offline scenarios where the intent was stored but the upload failed. Always check for `error` even when `paymentIntent` is present.
+</Note>
+
+---
+
+## `PaymentMethodType`
+
+The type of payment method used in a transaction.
+
+```typescript
+type PaymentMethodType =
+  | 'cardPresent'
+  | 'interacPresent'
+  | 'card'
+  | 'wechatPay'
+  | 'affirm'
+  | 'paynow'
+  | 'paypay';
+```
+
+---
+
+## `PaymentMethod.Type`
+
+A Stripe PaymentMethod object as returned by the Terminal SDK.
+
+<ResponseField name="id" type="string" required>
+  The PaymentMethod's unique identifier.
+</ResponseField>
+
+<ResponseField name="type" type="PaymentMethodType" required>
+  The type of payment method.
+</ResponseField>
+
+<ResponseField name="customer" type="string" required>
+  The ID of the customer this payment method belongs to.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  Whether this payment method was created in live mode.
+</ResponseField>
+
+<ResponseField name="cardPresentDetails" type="CardPresentDetails">
+  Card-present details, if applicable.
+</ResponseField>
+
+<ResponseField name="interacPresentDetails" type="CardPresentDetails">
+  Interac-present details, if applicable.
+</ResponseField>
+
+<ResponseField name="wechatPayDetails" type="WechatPayDetails">
+  WeChat Pay details, if applicable.
+</ResponseField>
+
+<ResponseField name="affirmDetails" type="AffirmDetails">
+  Affirm details, if applicable.
+</ResponseField>
+
+<ResponseField name="paynowDetails" type="PaynowDetails">
+  PayNow details, if applicable.
+</ResponseField>
+
+<ResponseField name="paypayDetails" type="PaypayDetails">
+  PayPay details, if applicable.
+</ResponseField>
+
+<ResponseField name="cardDetails" type="CardDetails">
+  Card (non-present) details, if applicable.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, string>">
+  Arbitrary key-value metadata attached to the payment method.
+</ResponseField>
+
+---
+
+## `PaymentOption`
+
+Represents one of multiple payment options available on a reader that supports both card and QR-based payments.
+
+<ResponseField name="index" type="number" required>
+  Index of the option, passed to `selectPaymentOption()` to select it.
+</ResponseField>
+
+<ResponseField name="type" type="'card' | 'nonCard' | 'unknown'" required>
+  Whether this option is card-present or a non-card method (e.g., QR code).
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  Human-readable label for the option.
+</ResponseField>
+
+<ResponseField name="paymentMethodType" type="string">
+  The underlying payment method type identifier.
+</ResponseField>
+
+---
+
+## `QrCodeDisplayData`
+
+Data required to render a QR code for the customer to scan.
+
+<ResponseField name="imageUrlPng" type="string" required>
+  URL to a PNG image of the QR code.
+</ResponseField>
+
+<ResponseField name="imageUrlSvg" type="string" required>
+  URL to an SVG image of the QR code.
+</ResponseField>
+
+<ResponseField name="expiresAtMs" type="number" required>
+  Unix timestamp in milliseconds when the QR code expires.
+</ResponseField>
+
+<ResponseField name="paymentMethodType" type="string" required>
+  The payment method type this QR code is for.
+</ResponseField>
+
+---
+
+## `PaymentMethodSelectionHandler`
+
+Callback invoked when a mobile Bluetooth reader supports multiple payment options and the application must present them to the customer.
+
+```typescript
+type PaymentMethodSelectionHandler = (
+  paymentIntent: PaymentIntent.Type,
+  availablePaymentOptions: PaymentOption[],
+  callback: {
+    selectPaymentOption: (paymentOptionType: string) => Promise<{ error?: StripeError }>;
+    failPaymentMethodSelection: (error?: string) => Promise<{ error?: StripeError }>;
+  }
+) => void;
+```
+
+| Callback method | Description |
+|-----------------|-------------|
+| `selectPaymentOption(paymentOptionType)` | Call with the selected option type to proceed |
+| `failPaymentMethodSelection(error?)` | Call to abort payment method selection with an optional error message |
+
+---
+
+## `QrCodeDisplayHandler`
+
+Callback invoked when the SDK needs the application to display a QR code to the customer.
+
+```typescript
+type QrCodeDisplayHandler = (
+  paymentIntent: PaymentIntent.Type,
+  qrData: QrCodeDisplayData,
+  callback: {
+    confirmQrCodeDisplayed: () => Promise<{ error?: StripeError }>;
+    failQrCodeDisplay: (error?: string) => Promise<{ error?: StripeError }>;
+  }
+) => void;
+```
+
+| Callback method | Description |
+|-----------------|-------------|
+| `confirmQrCodeDisplayed()` | Call after the QR code has been displayed to the customer |
+| `failQrCodeDisplay(error?)` | Call if the QR code cannot be displayed |

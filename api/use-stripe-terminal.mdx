@@ -1,0 +1,1031 @@
+---
+title: 'useStripeTerminal'
+description: 'React hook that provides access to all Stripe Terminal SDK methods, state, and event callbacks.'
+---
+
+`useStripeTerminal` is the primary hook for interacting with the Stripe Terminal SDK. It returns all SDK methods and current terminal state, and accepts optional event callbacks.
+
+<Note>
+  `StripeTerminalProvider` must be mounted as an ancestor of any component that calls `useStripeTerminal`.
+</Note>
+
+## Usage
+
+```typescript
+import React, { useEffect, useState } from 'react';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+export function ReaderScreen() {
+  const [readers, setReaders] = useState([]);
+
+  const {
+    initialize,
+    discoverReaders,
+    connectReader,
+    createPaymentIntent,
+    collectPaymentMethod,
+    confirmPaymentIntent,
+    connectedReader,
+    loading,
+    isInitialized,
+  } = useStripeTerminal({
+    onUpdateDiscoveredReaders: (discoveredReaders) => {
+      setReaders(discoveredReaders);
+    },
+    onDidChangeConnectionStatus: (status) => {
+      console.log('Connection status:', status);
+    },
+    onDidReportReaderSoftwareUpdateProgress: (progress) => {
+      console.log('Update progress:', progress);
+    },
+  });
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  const handleDiscover = async () => {
+    const { error } = await discoverReaders({
+      discoveryMethod: 'bluetoothScan',
+      simulated: true,
+    });
+    if (error) console.error(error);
+  };
+
+  const handleConnect = async (reader) => {
+    const { reader: connected, error } = await connectReader({
+      discoveryMethod: 'bluetoothScan',
+      reader,
+      locationId: 'tml_xxx',
+    });
+    if (error) console.error(error);
+  };
+
+  // ...
+}
+```
+
+## Callbacks
+
+Pass event callbacks as an optional object argument to `useStripeTerminal`. All callbacks are optional.
+
+### Discovery
+
+<ParamField path="onUpdateDiscoveredReaders" type="(readers: Reader.Type[]) => void">
+  Called whenever the list of discovered readers is updated during an active discovery session.
+</ParamField>
+
+<ParamField path="onFinishDiscoveringReaders" type="(error?: StripeError) => void">
+  Called when a discovery session completes or is cancelled. If discovery ended due to an error, `error` is populated.
+</ParamField>
+
+### Software updates
+
+<ParamField path="onDidReportAvailableUpdate" type="(update: Reader.SoftwareUpdate) => void">
+  Called when the connected reader has a new firmware update available.
+</ParamField>
+
+<ParamField path="onDidStartInstallingUpdate" type="(update: Reader.SoftwareUpdate) => void">
+  Called when the SDK begins installing a firmware update on the connected reader.
+</ParamField>
+
+<ParamField path="onDidReportReaderSoftwareUpdateProgress" type="(progress: string) => void">
+  Called repeatedly during update installation with the current progress as a string (e.g. `"0.5"` for 50%).
+</ParamField>
+
+<ParamField path="onDidFinishInstallingUpdate" type="(result: UpdateSoftwareResultType) => void">
+  Called when update installation completes. `result` contains either a `update: Reader.SoftwareUpdate` on success or an `error: StripeError` on failure.
+</ParamField>
+
+### Reader input
+
+<ParamField path="onDidRequestReaderInput" type="(input: Reader.InputOptions[]) => void">
+  Called when the reader is waiting for input from the customer. `input` is an array of accepted input options (e.g. swipe, tap, insert).
+</ParamField>
+
+<ParamField path="onDidRequestReaderDisplayMessage" type="(message: Reader.DisplayMessage) => void">
+  Called when the reader wants to display a message to the customer (e.g. "Insert card").
+</ParamField>
+
+### Connection status
+
+<ParamField path="onDidChangeConnectionStatus" type="(status: Reader.ConnectionStatus) => void">
+  Called whenever the reader connection status changes. Possible values: `'notConnected'`, `'connecting'`, `'connected'`, `'discovering'`, `'reconnecting'`.
+</ParamField>
+
+### Payment status
+
+<ParamField path="onDidChangePaymentStatus" type="(status: PaymentStatus) => void">
+  Called whenever the payment status changes. Possible values: `'notReady'`, `'ready'`, `'processing'`, `'waitingForInput'`.
+</ParamField>
+
+### Reconnection
+
+<ParamField path="onDidStartReaderReconnect" type="(reader: Reader.Type, reason?: Reader.DisconnectReason) => void">
+  Called when the SDK starts an automatic reconnection attempt after an unexpected disconnection.
+</ParamField>
+
+<ParamField path="onDidSucceedReaderReconnect" type="(reader: Reader.Type) => void">
+  Called when an automatic reconnection attempt succeeds.
+</ParamField>
+
+<ParamField path="onDidFailReaderReconnect" type="(reader: Reader.Type) => void">
+  Called when all automatic reconnection attempts have failed.
+</ParamField>
+
+### Offline
+
+<ParamField path="onDidChangeOfflineStatus" type="(status: OfflineStatus) => void">
+  Called when the offline status of the SDK or connected reader changes. `status` contains separate `sdk` and `reader` details about network connectivity and pending offline payment counts.
+</ParamField>
+
+<ParamField path="onDidForwardPaymentIntent" type="(paymentIntent: PaymentIntent.Type, error: StripeError) => void">
+  Called when an offline-stored payment intent has been forwarded to Stripe. Check `error` to determine if forwarding succeeded.
+</ParamField>
+
+<ParamField path="onDidForwardingFailure" type="(error?: StripeError) => void">
+  Called when the SDK fails to forward an offline payment intent.
+</ParamField>
+
+### Disconnection
+
+<ParamField path="onDidDisconnect" type="(reason?: Reader.DisconnectReason) => void">
+  Called when the reader disconnects. `reason` indicates whether the disconnect was expected or unexpected.
+</ParamField>
+
+### Battery
+
+<ParamField path="onDidUpdateBatteryLevel" type="(result: Reader.BatteryLevel) => void">
+  Called when the connected reader reports a battery level update.
+</ParamField>
+
+<ParamField path="onDidReportLowBatteryWarning" type="() => void">
+  Called when the connected reader's battery is low.
+</ParamField>
+
+### Reader events
+
+<ParamField path="onDidReportReaderEvent" type="(event: ReaderEvent) => void">
+  Called when the reader reports a card event. Possible values: `'cardInserted'`, `'cardRemoved'`.
+</ParamField>
+
+### Terms of service
+
+<ParamField path="onDidAcceptTermsOfService" type="() => void">
+  Called when the customer has accepted the Stripe Terminal terms of service on the reader (used with Tap to Pay).
+</ParamField>
+
+---
+
+## State
+
+The hook returns the following reactive state properties.
+
+<ParamField path="connectedReader" type="Reader.Type | null">
+  The currently connected reader, or `null` if no reader is connected.
+</ParamField>
+
+<ParamField path="discoveredReaders" type="Reader.Type[]">
+  The list of readers found during the current or most recent discovery session.
+</ParamField>
+
+<ParamField path="loading" type="boolean">
+  `true` while an SDK operation is in progress.
+</ParamField>
+
+<ParamField path="isInitialized" type="boolean">
+  `true` after `initialize()` has completed successfully.
+</ParamField>
+
+---
+
+## Methods
+
+### Initialization
+
+#### `initialize()`
+
+Initializes the Stripe Terminal SDK. Must be called before any other SDK method. Call this from a component nested inside `StripeTerminalProvider`.
+
+```typescript
+async function initialize(): Promise<InitializeResultType>
+// InitializeResultType: { reader?: Reader.Type; error?: undefined } | { error: StripeError; reader?: undefined }
+```
+
+---
+
+### Discovery and connection
+
+#### `discoverReaders(params)`
+
+Begins scanning for readers using the specified discovery method. Updates are delivered via the `onUpdateDiscoveredReaders` callback.
+
+```typescript
+async function discoverReaders(
+  params: DiscoverReadersParams
+): Promise<{ error?: StripeError }>
+
+// DiscoverReadersParams is one of:
+type DiscoverBluetoothScanParams = {
+  discoveryMethod: 'bluetoothScan';
+  timeout?: number;
+  simulated?: boolean;
+};
+
+type DiscoverBluetoothProximityParams = {
+  discoveryMethod: 'bluetoothProximity';
+  simulated?: boolean;
+};
+
+type DiscoverInternetParams = {
+  discoveryMethod: 'internet';
+  timeout?: number;
+  simulated?: boolean;
+  locationId?: string;
+  discoveryFilter?: DiscoveryFilter;
+};
+
+type DiscoverUsbParams = {
+  discoveryMethod: 'usb';
+  timeout?: number;
+  simulated?: boolean;
+};
+
+type DiscoverAppsOnDevicesParams = {
+  discoveryMethod: 'appsOnDevices';
+};
+
+type DiscoverTapToPayParams = {
+  discoveryMethod: 'tapToPay';
+  simulated?: boolean;
+};
+```
+
+#### `cancelDiscovering()`
+
+Cancels an in-progress discovery session.
+
+```typescript
+async function cancelDiscovering(): Promise<{ error?: StripeError }>
+```
+
+#### `easyConnect(params)`
+
+Combines discovery and connection into a single call. Discovers readers and automatically connects to the first compatible one found.
+
+```typescript
+async function easyConnect(
+  params: EasyConnectParams
+): Promise<ConnectReaderResultType>
+
+// EasyConnectParams is one of:
+type EasyConnectInternetParams = {
+  discoveryMethod: 'internet';
+  timeout?: number;
+  simulated?: boolean;
+  locationId?: string;
+  discoveryFilter?: DiscoveryFilter;
+  failIfInUse?: boolean;
+};
+
+type EasyConnectTapToPayParams = {
+  discoveryMethod: 'tapToPay';
+  simulated?: boolean;
+  locationId: string;
+  autoReconnectOnUnexpectedDisconnect?: boolean;
+  merchantDisplayName?: string;
+  onBehalfOf?: string;
+  tosAcceptancePermitted?: boolean;
+};
+
+type EasyConnectAppsOnDevicesParams = {
+  discoveryMethod: 'appsOnDevices';
+};
+```
+
+#### `cancelEasyConnect()`
+
+Cancels an in-progress `easyConnect` operation.
+
+```typescript
+async function cancelEasyConnect(): Promise<{ error?: StripeError }>
+```
+
+#### `connectReader(params)`
+
+Connects to a specific reader from the discovered readers list.
+
+```typescript
+async function connectReader(
+  params: ConnectReaderParams
+): Promise<ConnectReaderResultType>
+// ConnectReaderResultType: { reader: Reader.Type } | { error: StripeError }
+
+// ConnectReaderParams is one of:
+type ConnectBluetoothReaderParams = {
+  discoveryMethod: 'bluetoothScan';
+  reader: Reader.Type;
+  locationId: string;
+  autoReconnectOnUnexpectedDisconnect?: boolean;
+  onPaymentMethodSelectionRequired?: PaymentMethodSelectionHandler;
+  onQrCodeDisplayRequired?: QrCodeDisplayHandler;
+};
+
+type ConnectBluetoothProximityReaderParams = {
+  discoveryMethod: 'bluetoothProximity';
+  reader: Reader.Type;
+  locationId: string;
+  autoReconnectOnUnexpectedDisconnect?: boolean;
+  onPaymentMethodSelectionRequired?: PaymentMethodSelectionHandler;
+  onQrCodeDisplayRequired?: QrCodeDisplayHandler;
+};
+
+type ConnectUsbReaderParams = {
+  discoveryMethod: 'usb';
+  reader: Reader.Type;
+  locationId: string;
+  autoReconnectOnUnexpectedDisconnect?: boolean;
+  onPaymentMethodSelectionRequired?: PaymentMethodSelectionHandler;
+  onQrCodeDisplayRequired?: QrCodeDisplayHandler;
+};
+
+type ConnectTapToPayParams = {
+  discoveryMethod: 'tapToPay';
+  reader: Reader.Type;
+  locationId: string;
+  onBehalfOf?: string;
+  merchantDisplayName?: string;
+  tosAcceptancePermitted?: boolean;
+  autoReconnectOnUnexpectedDisconnect?: boolean;
+};
+
+type ConnectAppsOnDevicesParams = {
+  discoveryMethod: 'appsOnDevices';
+  reader: Reader.Type;
+};
+
+type ConnectInternetReaderParams = {
+  discoveryMethod: 'internet';
+  reader: Reader.Type;
+  failIfInUse?: boolean;
+};
+```
+
+#### `disconnectReader()`
+
+Disconnects from the currently connected reader.
+
+```typescript
+async function disconnectReader(): Promise<{ error?: StripeError }>
+```
+
+#### `rebootReader()`
+
+Reboots the currently connected reader.
+
+```typescript
+async function rebootReader(): Promise<{ error?: StripeError }>
+```
+
+#### `supportsReadersOfType(params)`
+
+Checks whether the device supports connecting to readers of the specified type.
+
+```typescript
+async function supportsReadersOfType(
+  params: Reader.ReaderSupportParams
+): Promise<Reader.ReaderSupportResult>
+
+type ReaderSupportResult = {
+  readerSupportResult: boolean;
+  error?: StripeError;
+};
+```
+
+#### `getConnectionStatus()`
+
+Returns the current reader connection status.
+
+```typescript
+async function getConnectionStatus(): Promise<ConnectionStatus>
+// ConnectionStatus: 'notConnected' | 'connecting' | 'connected' | 'discovering' | 'reconnecting'
+```
+
+#### `getConnectedReader()`
+
+Returns the currently connected reader, or null if no reader is connected.
+
+```typescript
+async function getConnectedReader(): Promise<Reader.Type | null>
+```
+
+#### `cancelReaderReconnection()`
+
+Cancels an in-progress automatic reader reconnection.
+
+```typescript
+async function cancelReaderReconnection(): Promise<{ error?: StripeError }>
+```
+
+#### `getLocations(params)`
+
+Retrieves a paginated list of Stripe Terminal locations registered to your account. Useful for letting users select a location when connecting a reader.
+
+```typescript
+async function getLocations(
+  params: GetLocationsParams
+): Promise<GetLocationsResultType>
+
+type GetLocationsParams = {
+  limit?: number;
+  endingBefore?: string;
+  startingAfter?: string;
+};
+
+type GetLocationsResultType =
+  | { locations: Location[]; hasMore: boolean; error?: undefined }
+  | { locations?: undefined; hasMore?: undefined; error: StripeError };
+
+type Location = {
+  id: string;
+  displayName?: string;
+  livemode: boolean;
+  address?: Address;
+};
+```
+
+---
+
+### Payments
+
+#### `createPaymentIntent(params)`
+
+Creates a new PaymentIntent with the given parameters.
+
+```typescript
+async function createPaymentIntent(
+  params: CreatePaymentIntentParams
+): Promise<PaymentIntentResultType>
+
+type CreatePaymentIntentParams = {
+  amount: number;
+  currency: string;
+  setupFutureUsage?: 'off_session' | 'on_session';
+  onBehalfOf?: string;
+  transferDataDestination?: string;
+  applicationFeeAmount?: number;
+  description?: string;
+  statementDescriptor?: string;
+  statementDescriptorSuffix?: string;
+  receiptEmail?: string;
+  customer?: string;
+  transferGroup?: string;
+  metadata?: Record<string, string>;
+  paymentMethodOptions?: PaymentMethodOptions;
+  captureMethod?: 'automatic' | 'manual';
+  offlineBehavior?: 'prefer_online' | 'require_online' | 'force_offline';
+  // iOS only:
+  paymentMethodTypes?: string[];
+};
+```
+
+#### `retrievePaymentIntent(clientSecret)`
+
+Retrieves an existing PaymentIntent by its client secret.
+
+```typescript
+async function retrievePaymentIntent(
+  clientSecret: string
+): Promise<PaymentIntentResultType>
+```
+
+#### `collectPaymentMethod(params)`
+
+Collects a payment method for the given PaymentIntent.
+
+```typescript
+async function collectPaymentMethod(
+  params: CollectPaymentMethodParams
+): Promise<PaymentIntentResultType>
+
+type CollectPaymentMethodParams = {
+  paymentIntent: PaymentIntent.Type;
+  skipTipping?: boolean;
+  tipEligibleAmount?: number;
+  updatePaymentIntent?: boolean;
+  customerCancellation?: CustomerCancellation;
+  requestDynamicCurrencyConversion?: boolean;
+  surchargeNotice?: string;
+  allowRedisplay?: AllowRedisplay;
+  motoConfiguration?: MotoConfiguration;
+};
+```
+
+#### `confirmPaymentIntent(params)`
+
+Confirms the PaymentIntent after a payment method has been collected.
+
+```typescript
+async function confirmPaymentIntent(
+  params: ConfirmPaymentMethodParams
+): Promise<PaymentIntentResultType>
+
+type ConfirmPaymentMethodParams = {
+  paymentIntent: PaymentIntent.Type;
+  surcharge?: Surcharge;
+  returnUrl?: string;
+};
+```
+
+#### `processPaymentIntent(params)`
+
+Combines `collectPaymentMethod` and `confirmPaymentIntent` into a single call.
+
+```typescript
+async function processPaymentIntent(
+  params: ProcessPaymentIntentParams
+): Promise<PaymentIntentResultType>
+
+type ProcessPaymentIntentParams = {
+  paymentIntent: PaymentIntent.Type;
+  skipTipping?: boolean;
+  tipEligibleAmount?: number;
+  updatePaymentIntent?: boolean;
+  customerCancellation?: CustomerCancellation;
+  requestDynamicCurrencyConversion?: boolean;
+  surchargeNotice?: string;
+  allowRedisplay?: AllowRedisplay;
+  motoConfiguration?: MotoConfiguration;
+  surcharge?: Surcharge;
+  returnUrl?: string;
+};
+```
+
+#### `cancelPaymentIntent(params)`
+
+Cancels the given PaymentIntent.
+
+```typescript
+async function cancelPaymentIntent(
+  params: CancelPaymentMethodParams
+): Promise<PaymentIntentResultType>
+
+type CancelPaymentMethodParams = {
+  paymentIntent: PaymentIntent.Type;
+};
+```
+
+#### `cancelCollectPaymentMethod()`
+
+Cancels an in-progress `collectPaymentMethod` operation.
+
+```typescript
+async function cancelCollectPaymentMethod(): Promise<{ error?: StripeError }>
+```
+
+#### `cancelConfirmPaymentIntent()`
+
+Cancels an in-progress `confirmPaymentIntent` operation.
+
+```typescript
+async function cancelConfirmPaymentIntent(): Promise<{ error?: StripeError }>
+```
+
+#### `cancelProcessPaymentIntent()`
+
+Cancels an in-progress `processPaymentIntent` operation.
+
+```typescript
+async function cancelProcessPaymentIntent(): Promise<{ error?: StripeError }>
+```
+
+#### `getPaymentStatus()`
+
+Returns the current payment status.
+
+```typescript
+async function getPaymentStatus(): Promise<PaymentStatus>
+// PaymentStatus: 'notReady' | 'ready' | 'processing' | 'waitingForInput'
+```
+
+---
+
+### Setup intents
+
+#### `createSetupIntent(params)`
+
+Creates a new SetupIntent.
+
+```typescript
+async function createSetupIntent(
+  params: CreateSetupIntentParams
+): Promise<SetupIntentResultType>
+
+type CreateSetupIntentParams = {
+  customer?: string;
+  description?: string;
+  metadata?: Record<string, string>;
+  onBehalfOf?: string;
+  paymentMethodTypes?: string[];
+  usage?: string;
+};
+```
+
+#### `retrieveSetupIntent(clientSecret)`
+
+Retrieves an existing SetupIntent by its client secret.
+
+```typescript
+async function retrieveSetupIntent(
+  clientSecret: string
+): Promise<SetupIntentResultType>
+```
+
+#### `collectSetupIntentPaymentMethod(params)`
+
+Collects a payment method for the given SetupIntent.
+
+```typescript
+async function collectSetupIntentPaymentMethod(
+  params: CollectSetupIntentPaymentMethodParams
+): Promise<SetupIntentResultType>
+
+type CollectSetupIntentPaymentMethodParams = {
+  setupIntent: SetupIntent.Type;
+  allowRedisplay?: AllowRedisplay;
+  customerCancellation?: CustomerCancellation;
+  motoConfiguration?: MotoConfiguration;
+  collectionReason?: CollectionReason;
+};
+```
+
+#### `confirmSetupIntent(params)`
+
+Confirms the SetupIntent.
+
+```typescript
+async function confirmSetupIntent(
+  params: ConfirmSetupIntentMethodParams
+): Promise<SetupIntentResultType>
+
+type ConfirmSetupIntentMethodParams = {
+  setupIntent: SetupIntent.Type;
+};
+```
+
+#### `processSetupIntent(params)`
+
+Combines `collectSetupIntentPaymentMethod` and `confirmSetupIntent` into a single call.
+
+```typescript
+async function processSetupIntent(
+  params: ProcessSetupIntentParams
+): Promise<SetupIntentResultType>
+
+type ProcessSetupIntentParams = {
+  setupIntent: SetupIntent.Type;
+  allowRedisplay?: AllowRedisplay;
+  customerCancellation?: CustomerCancellation;
+  motoConfiguration?: MotoConfiguration;
+  collectionReason?: CollectionReason;
+};
+```
+
+#### `cancelSetupIntent(params)`
+
+Cancels the given SetupIntent.
+
+```typescript
+async function cancelSetupIntent(
+  params: CancelSetupIntentMethodParams
+): Promise<SetupIntentResultType>
+
+type CancelSetupIntentMethodParams = {
+  setupIntent: SetupIntent.Type;
+};
+```
+
+#### `cancelCollectSetupIntent()`
+
+Cancels an in-progress `collectSetupIntentPaymentMethod` operation.
+
+```typescript
+async function cancelCollectSetupIntent(): Promise<{ error?: StripeError }>
+```
+
+#### `cancelConfirmSetupIntent()`
+
+Cancels an in-progress `confirmSetupIntent` operation.
+
+```typescript
+async function cancelConfirmSetupIntent(): Promise<{ error?: StripeError }>
+```
+
+#### `cancelProcessSetupIntent()`
+
+Cancels an in-progress `processSetupIntent` operation.
+
+```typescript
+async function cancelProcessSetupIntent(): Promise<{ error?: StripeError }>
+```
+
+---
+
+### Refunds
+
+#### `processRefund(params)`
+
+Processes an in-person refund. Accepts either a `paymentIntentId` + `clientSecret` or a `chargeId`.
+
+```typescript
+async function processRefund(
+  params: RefundParams
+): Promise<ProcessRefundResultType>
+// ProcessRefundResultType: { refund?: Refund.Props; error?: StripeError }
+
+type RefundParamsWithPaymentIntentId = {
+  paymentIntentId: string;
+  clientSecret: string;
+  amount: number;
+  currency: string;
+  refundApplicationFee?: boolean;
+  reverseTransfer?: boolean;
+  customerCancellation?: CustomerCancellation;
+  metadata?: Record<string, string>;
+};
+
+type RefundParamsWithChargeId = {
+  chargeId: string;
+  amount: number;
+  currency: string;
+  refundApplicationFee?: boolean;
+  reverseTransfer?: boolean;
+  customerCancellation?: CustomerCancellation;
+  metadata?: Record<string, string>;
+};
+```
+
+#### `cancelProcessRefund()`
+
+Cancels an in-progress `processRefund` operation.
+
+```typescript
+async function cancelProcessRefund(): Promise<{ error?: StripeError }>
+```
+
+---
+
+### Reader display
+
+#### `setReaderDisplay(cart)`
+
+Displays cart or line-item information on the reader's screen.
+
+```typescript
+async function setReaderDisplay(
+  cart: Cart
+): Promise<{ error?: StripeError }>
+
+type Cart = {
+  currency: string;
+  tax: number;
+  total: number;
+  lineItems: LineItem[];
+};
+
+type LineItem = {
+  displayName: string;
+  quantity: number;
+  amount: number;
+};
+```
+
+#### `clearReaderDisplay()`
+
+Clears any content currently displayed on the reader's screen.
+
+```typescript
+async function clearReaderDisplay(): Promise<{ error?: StripeError }>
+```
+
+---
+
+### Reader settings
+
+#### `getReaderSettings()`
+
+Retrieves the current settings of the connected reader.
+
+```typescript
+async function getReaderSettings(): Promise<{ readerSettings?: Reader.ReaderSettings; error?: StripeError }>
+```
+
+#### `setReaderSettings(params)`
+
+Updates the settings of the connected reader.
+
+```typescript
+async function setReaderSettings(
+  params: Reader.ReaderSettingsParameters
+): Promise<{ readerSettings?: Reader.ReaderSettings; error?: StripeError }>
+```
+
+#### `setTapToPayUxConfiguration(params)`
+
+Configures the Tap to Pay UX (tap zone position, dark mode, colors).
+
+```typescript
+async function setTapToPayUxConfiguration(
+  params: TapToPayUxConfiguration
+): Promise<{ error?: StripeError }>
+
+type TapToPayUxConfiguration = {
+  tapZone?: TapZone;
+  darkMode?: DarkMode; // 'dark' | 'light' | 'system'
+  colors?: {
+    primary?: string;
+    success?: string;
+    error?: string;
+  };
+};
+```
+
+---
+
+### Inputs and data
+
+#### `collectInputs(params)`
+
+Collects one or more structured inputs from the customer on the reader screen (text, phone, email, signature, numeric, or selection).
+
+```typescript
+async function collectInputs(
+  params: ICollectInputsParameters
+): Promise<ICollectInputsResults>
+
+interface ICollectInputsParameters {
+  inputs: Array<IInput>;
+}
+
+interface IInput {
+  formType: FormType; // 'selection' | 'signature' | 'phone' | 'email' | 'numeric' | 'text'
+  required?: boolean | null;
+  title: string;
+  description?: string | null;
+  toggles?: IToggle[] | null;
+  skipButtonText?: string | null;
+  submitButtonText?: string | null;
+  selectionButtons?: ISelectionButton[];
+}
+```
+
+#### `cancelCollectInputs()`
+
+Cancels an in-progress `collectInputs` operation.
+
+```typescript
+async function cancelCollectInputs(): Promise<{ error?: StripeError }>
+```
+
+#### `collectData(params)`
+
+Collects non-payment card data from the reader (e.g. NFC UID or magstripe).
+
+```typescript
+async function collectData(
+  params: CollectDataParams
+): Promise<CollectDataResultType>
+
+interface CollectDataParams {
+  collectDataType: CollectDataType; // 'magstripe' | 'nfcUid' | 'unknown'
+  customerCancellation: CustomerCancellation;
+}
+```
+
+#### `cancelCollectData()`
+
+Cancels an in-progress `collectData` operation.
+
+```typescript
+async function cancelCollectData(): Promise<{ error?: StripeError }>
+```
+
+#### `print(content)`
+
+Prints content on the connected reader. Accepts a JPEG or PNG image encoded as a base64 string or `data:` URI.
+
+```typescript
+async function print(content: PrintContent): Promise<{ error?: StripeError }>
+// PrintContent: string (base64-encoded image or data: URI)
+```
+
+---
+
+### Offline
+
+#### `getOfflineStatus()`
+
+Returns the current offline status for the SDK and connected reader.
+
+```typescript
+async function getOfflineStatus(): Promise<OfflineStatus>
+
+type OfflineStatus = {
+  sdk: OfflineStatusDetails;
+  reader?: OfflineStatusDetails;
+};
+
+type OfflineStatusDetails = {
+  networkStatus: 'online' | 'offline' | 'unknown';
+  offlinePaymentsCount: number;
+  offlinePaymentAmountsByCurrency: { [key: string]: number };
+};
+```
+
+---
+
+### Updates
+
+#### `installAvailableUpdate()`
+
+Begins installation of a pending firmware update on the connected reader. Progress and completion are reported via the `onDidReportReaderSoftwareUpdateProgress` and `onDidFinishInstallingUpdate` callbacks.
+
+```typescript
+async function installAvailableUpdate(): Promise<{ error?: StripeError }>
+```
+
+#### `cancelInstallingUpdate()`
+
+Cancels an in-progress firmware update installation.
+
+```typescript
+async function cancelInstallingUpdate(): Promise<{ error?: StripeError }>
+```
+
+---
+
+### Simulation and testing
+
+<Note>
+  Simulation methods only work when using the simulated reader environment. Do not call them in production.
+</Note>
+
+#### `simulateReaderUpdate(update)`
+
+Simulates a specific reader update scenario for testing.
+
+```typescript
+async function simulateReaderUpdate(
+  update: Reader.SimulateUpdateType
+): Promise<{ error?: StripeError }>
+```
+
+#### `setSimulatedCard(cardNumber)`
+
+Sets the card number that the simulated reader will present during payment collection.
+
+```typescript
+async function setSimulatedCard(
+  cardNumber: string
+): Promise<{ error?: StripeError }>
+```
+
+#### `setSimulatedOfflineMode(simulatedOffline)`
+
+Enables or disables simulated offline mode.
+
+```typescript
+async function setSimulatedOfflineMode(
+  simulatedOffline: boolean
+): Promise<{ error?: StripeError }>
+```
+
+#### `setSimulatedCollectInputsResult(behavior)`
+
+Sets the simulated result behavior for `collectInputs`.
+
+```typescript
+async function setSimulatedCollectInputsResult(
+  behavior: string
+): Promise<{ error?: StripeError }>
+```
+
+#### `getNativeSdkVersion()`
+
+Returns the version string of the underlying native Stripe Terminal SDK.
+
+```typescript
+async function getNativeSdkVersion(): Promise<string>
+```
+
+---
+
+### Other
+
+#### `clearCachedCredentials()`
+
+Clears any cached credentials stored by the SDK. Call this when a user logs out of your application.
+
+```typescript
+async function clearCachedCredentials(): Promise<{ error?: StripeError }>
+```

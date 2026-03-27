@@ -1,0 +1,109 @@
+---
+title: 'Introduction'
+description: 'Accept in-person payments from your React Native app using Stripe Terminal pre-certified card readers.'
+---
+
+Stripe Terminal enables you to build your own in-person checkout to accept payments in the physical world. Built on Stripe's payments network, Terminal helps you unify your online and offline payment channels. With the Stripe Terminal React Native SDK, you can connect to pre-certified card readers from your React Native app and drive a customized in-store checkout flow.
+
+<CardGroup cols={2}>
+  <Card title="Quickstart" icon="bolt" href="/quickstart">
+    Get up and running with a working integration in minutes.
+  </Card>
+  <Card title="Requirements" icon="list-check" href="/requirements">
+    Review platform requirements before you integrate.
+  </Card>
+  <Card title="GitHub" icon="github" href="https://github.com/stripe/stripe-terminal-react-native">
+    Browse the open-source SDK and example application.
+  </Card>
+  <Card title="API Reference" icon="code" href="https://stripe.dev/stripe-terminal-react-native">
+    Explore the full SDK reference documentation.
+  </Card>
+</CardGroup>
+
+## What is Stripe Terminal React Native?
+
+Stripe Terminal is a programmable point-of-sale solution that lets you accept card-present payments — where a physical card is tapped, swiped, or inserted at the point of sale. The React Native SDK is the bridge between your React Native application and Stripe's Terminal hardware and payment infrastructure.
+
+The SDK supports a range of pre-certified card readers including Bluetooth readers (such as the BBPOS Chipper and Stripe Reader M2), internet-connected smart readers (such as the Stripe Reader S700 and BBPOS WisePOS E), and USB-connected devices. On supported devices, Tap to Pay lets you accept contactless payments directly on a mobile device without any additional hardware.
+
+## How the SDK fits into Stripe Terminal
+
+A Terminal integration connects three parts:
+
+1. **Your backend server** — Creates connection tokens via the Stripe Terminal API. The SDK fetches these tokens when it needs to authenticate with Stripe. Your server never exposes secret keys to your app.
+2. **Reader hardware** — Pre-certified card readers that capture payment method data and communicate with Stripe's network.
+3. **Your React Native app** — Uses this SDK to discover readers, connect to them, and orchestrate the payment flow.
+
+The connection token flow works like this: when the SDK needs a token, it calls your `tokenProvider` function, which fetches a short-lived secret from your backend. This keeps your Stripe secret key server-side.
+
+## Architecture overview
+
+The SDK is built around two primitives:
+
+**`StripeTerminalProvider`** is a React context provider that wraps your application. It holds the shared SDK state — the connected reader, discovered readers, loading status — and manages the connection token lifecycle. Place it at the root of your component tree.
+
+```tsx
+import { StripeTerminalProvider } from '@stripe/stripe-terminal-react-native';
+
+function Root() {
+  const fetchTokenProvider = async () => {
+    const response = await fetch(`${API_URL}/connection_token`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+    const { secret } = await response.json();
+    return secret;
+  };
+
+  return (
+    <StripeTerminalProvider
+      logLevel="verbose"
+      tokenProvider={fetchTokenProvider}
+    >
+      <App />
+    </StripeTerminalProvider>
+  );
+}
+```
+
+**`useStripeTerminal`** is a React hook that provides all SDK methods and reactive state to any component nested inside `StripeTerminalProvider`. Call `initialize` once on mount, then use methods like `discoverReaders`, `connectReader`, and `createPaymentIntent` throughout your app.
+
+```tsx
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+function App() {
+  const { initialize } = useStripeTerminal();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  return <View />;
+}
+```
+
+<Note>
+  `initialize` must be called from a component that is a **child** of `StripeTerminalProvider`, not from the same component that renders the provider.
+</Note>
+
+## Supported discovery methods
+
+The SDK supports the following values for the `discoveryMethod` parameter of `discoverReaders`:
+
+| Method | Description |
+|---|---|
+| `bluetoothScan` | Scans for Bluetooth LE readers nearby. Most common for mobile point-of-sale. |
+| `bluetoothProximity` | Connects to a specific Bluetooth reader by proximity without a full scan. |
+| `internet` | Discovers smart readers registered to your Stripe account over the internet. |
+| `usb` | Discovers readers connected via USB (Android only). |
+| `tapToPay` | Uses the device's built-in NFC to accept contactless payments without a reader. |
+| `appsOnDevices` | For apps running directly on Stripe smart readers (Android only, private preview). |
+
+## Supported platforms
+
+- **iOS** 15.1 and above
+- **Android** API level 26 and above
+
+See [Requirements](/requirements) for full details including SDK versions and required permissions.

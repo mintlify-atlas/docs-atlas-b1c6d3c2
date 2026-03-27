@@ -1,0 +1,175 @@
+---
+title: 'Reader updates'
+description: 'Handle reader software updates and simulate update scenarios during testing.'
+---
+
+The Stripe Terminal SDK notifies your app when a software update is available for the connected reader and provides controls to install or cancel it.
+
+## Receive update notifications
+
+Register `onDidReportAvailableUpdate` when calling `useStripeTerminal` to be notified when an update is ready.
+
+```typescript
+import type { Reader } from '@stripe/stripe-terminal-react-native';
+
+useStripeTerminal({
+  onDidReportAvailableUpdate: (update: Reader.SoftwareUpdate) => {
+    console.log('Update available:', update.deviceSoftwareVersion);
+    console.log('Estimated time:', update.estimatedUpdateTime);
+    // Reader.EstimatedUpdateTime:
+    // 'estimateLessThan1Minute' | 'estimate1To2Minutes'
+    // | 'estimate2To5Minutes' | 'estimate5To15Minutes'
+    if (update.requiredAt) {
+      console.log('Required by:', update.requiredAt);
+    }
+  },
+});
+```
+
+The `Reader.SoftwareUpdate` type:
+
+```typescript
+type SoftwareUpdate = {
+  deviceSoftwareVersion: string;    // target firmware version
+  estimatedUpdateTime: EstimatedUpdateTime;
+  requiredAt?: string;              // ISO date string; undefined if optional
+};
+```
+
+## Install an update
+
+Call `installAvailableUpdate` to start installation. Monitor progress with the update callbacks.
+
+```typescript
+const {
+  installAvailableUpdate,
+  cancelInstallingUpdate,
+} = useStripeTerminal({
+  onDidStartInstallingUpdate: (update: Reader.SoftwareUpdate) => {
+    console.log('Installing version:', update.deviceSoftwareVersion);
+  },
+
+  onDidReportReaderSoftwareUpdateProgress: (progress: string) => {
+    // progress is a string representing a float between "0" and "1"
+    // e.g. "0.25", "0.5", "1.0"
+    const percent = Math.round(parseFloat(progress) * 100);
+    console.log(`Update progress: ${percent}%`);
+  },
+
+  onDidFinishInstallingUpdate: ({ update, error }) => {
+    if (error) {
+      console.error('Update failed:', error.message);
+      return;
+    }
+    console.log('Update complete, new version:', update?.deviceSoftwareVersion);
+  },
+});
+
+// Start the installation
+const { error } = await installAvailableUpdate();
+if (error) {
+  console.error('Failed to start update:', error.message);
+}
+```
+
+## Cancel an in-progress update
+
+<Warning>
+  Not all readers support cancelling mid-installation. Required updates cannot be skipped — the reader will refuse to accept payments until they are installed.
+</Warning>
+
+```typescript
+const { error } = await cancelInstallingUpdate();
+
+if (error) {
+  console.error('Cancel failed:', error.message);
+}
+```
+
+## Full update UI example
+
+```typescript
+import React, { useState } from 'react';
+import { Button, Text, View } from 'react-native';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+import type { Reader, UpdateSoftwareResultType } from '@stripe/stripe-terminal-react-native';
+
+export function ReaderUpdateScreen() {
+  const [progress, setProgress] = useState<number>(0);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [updateInfo, setUpdateInfo] = useState<Reader.SoftwareUpdate | null>(null);
+
+  const { installAvailableUpdate, cancelInstallingUpdate } = useStripeTerminal({
+    onDidReportAvailableUpdate: (update) => {
+      setUpdateInfo(update);
+    },
+    onDidStartInstallingUpdate: () => {
+      setIsUpdating(true);
+      setProgress(0);
+    },
+    onDidReportReaderSoftwareUpdateProgress: (p) => {
+      setProgress(parseFloat(p));
+    },
+    onDidFinishInstallingUpdate: ({ update, error }: UpdateSoftwareResultType) => {
+      setIsUpdating(false);
+      if (error) {
+        console.error('Update failed:', error.message);
+      } else {
+        console.log('Updated to:', update?.deviceSoftwareVersion);
+        setUpdateInfo(null);
+      }
+    },
+  });
+
+  return (
+    <View>
+      {updateInfo && !isUpdating && (
+        <View>
+          <Text>Update available: {updateInfo.deviceSoftwareVersion}</Text>
+          <Text>Estimated time: {updateInfo.estimatedUpdateTime}</Text>
+          <Button title="Install Update" onPress={() => installAvailableUpdate()} />
+        </View>
+      )}
+      {isUpdating && (
+        <View>
+          <Text>Installing... {Math.round(progress * 100)}%</Text>
+          <Button title="Cancel" onPress={() => cancelInstallingUpdate()} />
+        </View>
+      )}
+    </View>
+  );
+}
+```
+
+## Simulate updates for testing
+
+Use `simulateReaderUpdate` before connecting to a simulated reader to control which update scenario is triggered.
+
+```typescript
+import type { Reader } from '@stripe/stripe-terminal-react-native';
+
+const { simulateReaderUpdate } = useStripeTerminal();
+
+// Must be called before connecting to the simulated reader
+await simulateReaderUpdate('available');
+```
+
+### SimulateUpdateType values
+
+| Value | Description |
+|---|---|
+| `none` | No update available. Default. |
+| `available` | An optional update is available and will be reported via `onDidReportAvailableUpdate`. |
+| `required` | A required update must be installed before the reader can be used. |
+| `random` | Randomly selects an update type on each connection. |
+| `lowBattery` | Simulates a low battery condition during the update. |
+| `lowBatterySucceedConnect` | Low battery during update, but connection still succeeds. |
+| `requiredForOffline` | A required update for offline mode support. |
+
+```typescript
+// Simulate a required update
+await simulateReaderUpdate('required');
+
+// Then discover and connect — the update will be enforced before the reader is usable
+const { error } = await discoverReaders({ discoveryMethod: 'bluetoothScan', simulated: true });
+```

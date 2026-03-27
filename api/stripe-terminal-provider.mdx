@@ -1,0 +1,150 @@
+---
+title: 'StripeTerminalProvider'
+description: 'React context provider that initializes the Stripe Terminal SDK and makes it available to your application.'
+---
+
+`StripeTerminalProvider` is the top-level React context provider for the Stripe Terminal SDK. It must wrap your application (or the portion of your app that uses Terminal) before any SDK methods can be called.
+
+<Note>
+  `initialize()` must be called from a **nested component**, not from within `StripeTerminalProvider` itself. Call it inside a child component using the `useStripeTerminal` hook.
+</Note>
+
+## Usage
+
+```typescript
+import React from 'react';
+import { StripeTerminalProvider } from '@stripe/stripe-terminal-react-native';
+
+const fetchTokenProvider = async () => {
+  const response = await fetch('https://your-backend.com/connection_token');
+  const { secret } = await response.json();
+  return secret;
+};
+
+export default function App() {
+  return (
+    <StripeTerminalProvider
+      logLevel="verbose"
+      tokenProvider={fetchTokenProvider}
+    >
+      <YourApp />
+    </StripeTerminalProvider>
+  );
+}
+
+// In a nested component, call initialize()
+function YourApp() {
+  const { initialize } = useStripeTerminal();
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  return <View />;
+}
+```
+
+## Props
+
+<ParamField path="tokenProvider" type="() => Promise<string>" required>
+  An async function that fetches a connection token from your server and returns it as a string. This is called by the SDK whenever a new connection token is needed.
+
+  ```typescript
+  const fetchTokenProvider = async () => {
+    const response = await fetch('https://your-backend.com/connection_token');
+    const { secret } = await response.json();
+    return secret;
+  };
+  ```
+
+  For Apps on Devices mode, pass `AppsOnDevicesConnectionTokenProvider` instead of a custom function.
+</ParamField>
+
+<ParamField path="logLevel" type="'none' | 'verbose' | 'error' | 'warning'">
+  Controls the verbosity of SDK log output.
+
+  - **iOS**: accepts `'none'` or `'verbose'`
+  - **Android**: accepts `'none'`, `'verbose'`, `'error'`, or `'warning'`
+
+  Defaults to no logging when omitted.
+</ParamField>
+
+## AppsOnDevicesConnectionTokenProvider
+
+`AppsOnDevicesConnectionTokenProvider` is an alternative token provider for the **Apps on Devices** connection method, which allows apps running on Stripe smart readers to obtain connection tokens without contacting your backend server.
+
+<Warning>
+  Apps on Devices is in private preview and is only available on Android. Contact Stripe support to enable this feature on your account.
+</Warning>
+
+```typescript
+import {
+  StripeTerminalProvider,
+  AppsOnDevicesConnectionTokenProvider,
+} from '@stripe/stripe-terminal-react-native';
+
+export default function App() {
+  return (
+    <StripeTerminalProvider
+      tokenProvider={AppsOnDevicesConnectionTokenProvider}
+    >
+      <YourApp />
+    </StripeTerminalProvider>
+  );
+}
+```
+
+When `AppsOnDevicesConnectionTokenProvider` is detected as the `tokenProvider`, the SDK automatically switches to serverless initialization mode and does not attempt to contact your backend for a token.
+
+---
+
+## Utility exports
+
+### `getSdkVersion()`
+
+Returns the version string of the `@stripe/stripe-terminal-react-native` package. Useful for logging and debugging.
+
+```typescript
+import { getSdkVersion } from '@stripe/stripe-terminal-react-native';
+
+const version = getSdkVersion(); // e.g. "0.0.1-beta.29"
+console.log('SDK version:', version);
+```
+
+### `requestNeededAndroidPermissions(params)`
+
+Requests the Android runtime permissions required by the SDK (Bluetooth and location). Call this before starting reader discovery on Android.
+
+```typescript
+import { requestNeededAndroidPermissions } from '@stripe/stripe-terminal-react-native';
+
+const { error } = await requestNeededAndroidPermissions({
+  accessFineLocation: {
+    title: 'Location Permission',
+    message: 'Stripe Terminal needs access to your location to find nearby readers.',
+    buttonPositive: 'Accept',
+  },
+});
+
+if (error) {
+  console.error('Permission denied:', error);
+}
+```
+
+See [Android Setup](/platform/android) for details on required permissions.
+
+### `checkIfObjectIsStripeError(obj)`
+
+Returns `true` if the given object is a `StripeError`. Useful when catching exceptions in a try/catch block.
+
+```typescript
+import { checkIfObjectIsStripeError } from '@stripe/stripe-terminal-react-native';
+
+try {
+  // ...
+} catch (e) {
+  if (checkIfObjectIsStripeError(e)) {
+    console.log('SDK error code:', e.code);
+  }
+}
+```

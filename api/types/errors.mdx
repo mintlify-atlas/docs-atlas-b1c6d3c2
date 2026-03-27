@@ -1,0 +1,346 @@
+---
+title: 'Errors'
+description: 'Error types, error codes, and error handling patterns for the Stripe Terminal React Native SDK.'
+---
+
+## `StripeError`
+
+All SDK operations that can fail return a `StripeError`. It extends the standard JavaScript `Error` interface with Terminal-specific fields.
+
+<ResponseField name="name" type="'StripeError'" required>
+  Always `'StripeError'`. Use this to distinguish a `StripeError` from other error types.
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  A human-readable description of the error.
+</ResponseField>
+
+<ResponseField name="code" type="ErrorCode" required>
+  A machine-readable error code. See [`ErrorCode`](#errorcode-values) for the full list.
+</ResponseField>
+
+<ResponseField name="nativeErrorCode" type="string" required>
+  The raw error code from the underlying native SDK (iOS or Android). Useful for debugging platform-specific issues.
+</ResponseField>
+
+<ResponseField name="metadata" type="Record<string, unknown>" required>
+  A flexible map of platform-specific metadata associated with the error.
+</ResponseField>
+
+<ResponseField name="paymentIntent" type="PaymentIntent.Type">
+  The PaymentIntent associated with the error, if applicable. Present when an error occurs during payment collection or confirmation.
+</ResponseField>
+
+<ResponseField name="setupIntent" type="SetupIntent.Type">
+  The SetupIntent associated with the error, if applicable.
+</ResponseField>
+
+<ResponseField name="refund" type="Refund.Props">
+  The Refund associated with the error, if applicable. Populated on Android.
+</ResponseField>
+
+<ResponseField name="apiError" type="ApiErrorInformation">
+  Structured API-level error details. Present when the error originates from the Stripe API (e.g., a declined card). See [`ApiErrorInformation`](#apierrorinformation).
+</ResponseField>
+
+<ResponseField name="underlyingError" type="UnderlyingErrorInformation">
+  Details about the underlying native error. See [`UnderlyingErrorInformation`](#underlyingerrorinformation).
+</ResponseField>
+
+---
+
+## `ApiErrorInformation`
+
+Structured error details from the Stripe API. Available on both platforms, though iOS provides a subset of fields.
+
+<Note>
+  On iOS, `charge` is not yet available and will be added in a future SDK version.
+</Note>
+
+<ResponseField name="code" type="string" required>
+  The Stripe API error code (e.g., `card_declined`).
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  A human-readable message describing the API error.
+</ResponseField>
+
+<ResponseField name="declineCode" type="string" required>
+  The card decline code (e.g., `insufficient_funds`, `do_not_honor`). Only relevant for payment errors.
+</ResponseField>
+
+<ResponseField name="docUrl" type="string">
+  URL to the relevant Stripe documentation for this error.
+</ResponseField>
+
+<ResponseField name="param" type="string">
+  The name of the parameter that caused the error, if applicable.
+</ResponseField>
+
+<ResponseField name="type" type="string">
+  The error type (e.g., `card_error`, `invalid_request_error`, `api_error`).
+</ResponseField>
+
+<ResponseField name="charge" type="string">
+  ID of the failed charge, if applicable. *(Android only; iOS support coming in v5.1)*
+</ResponseField>
+
+---
+
+## `UnderlyingErrorInformation`
+
+Details about the native-level error that caused the `StripeError`.
+
+<ResponseField name="code" type="string" required>
+  The native error code. On Android this is typically the exception class name; on iOS it is the `NSError` code.
+</ResponseField>
+
+<ResponseField name="message" type="string" required>
+  The native error message.
+</ResponseField>
+
+<ResponseField name="iosDomain" type="string">
+  The `NSError` domain. *(iOS only)*
+</ResponseField>
+
+<ResponseField name="iosLocalizedFailureReason" type="string">
+  Localized failure reason from `NSError.userInfo`. *(iOS only)*
+</ResponseField>
+
+<ResponseField name="iosLocalizedRecoverySuggestion" type="string">
+  Localized recovery suggestion from `NSError.userInfo`. *(iOS only)*
+</ResponseField>
+
+---
+
+## `StripeErrorMetadataKeys`
+
+Constants for accessing platform-specific values in `StripeError.metadata`. These keys may or may not be present depending on the error type and platform.
+
+```typescript
+import { StripeErrorMetadataKeys } from '@stripe/stripe-terminal-react-native';
+```
+
+| Key | Value | Platform | Description |
+|-----|-------|----------|-------------|
+| `IOS_DEVICE_BANNED_UNTIL_DATE` | `'deviceBannedUntilDate'` | iOS | Date until which the device is banned for Tap to Pay (ISO 8601 string) |
+| `IOS_PREPARE_FAILED_REASON` | `'prepareFailedReason'` | iOS | Reason why the Tap to Pay reader failed to prepare |
+| `IOS_HTTP_STATUS_CODE` | `'httpStatusCode'` | iOS | HTTP status code from the Stripe API response |
+| `IOS_READER_MESSAGE` | `'readerMessage'` | iOS | Message displayed on the reader device |
+| `IOS_STRIPE_API_REQUEST_ID` | `'stripeAPIRequestId'` | iOS | Stripe API request ID for debugging |
+| `IOS_STRIPE_API_FAILURE_REASON` | `'stripeAPIFailureReason'` | iOS | Detailed failure reason from the Stripe API |
+| `IOS_OFFLINE_DECLINE_REASON` | `'offlineDeclineReason'` | iOS | Reason for an offline payment decline |
+
+```typescript
+import { StripeErrorMetadataKeys } from '@stripe/stripe-terminal-react-native';
+
+if (error.metadata) {
+  const statusCode = error.metadata[StripeErrorMetadataKeys.IOS_HTTP_STATUS_CODE] as number | undefined;
+  const requestId = error.metadata[StripeErrorMetadataKeys.IOS_STRIPE_API_REQUEST_ID] as string | undefined;
+  console.log('HTTP status:', statusCode, 'Request ID:', requestId);
+}
+```
+
+---
+
+## Error handling
+
+All SDK methods return a result object that may contain an `error`. Always check for `error` before using the result.
+
+```typescript
+const { error, paymentIntent } = await confirmPaymentIntent({ paymentIntent });
+if (error) {
+  console.log(error.code);    // ErrorCode
+  console.log(error.message);
+
+  if (error.apiError) {
+    // Card was declined by the Stripe API
+    console.log(error.apiError.declineCode); // e.g., 'insufficient_funds'
+    console.log(error.apiError.type);        // e.g., 'card_error'
+  }
+
+  if (error.underlyingError) {
+    // Low-level native error details
+    console.log(error.underlyingError.code);
+    console.log(error.underlyingError.message);
+  }
+}
+```
+
+<Tip>
+  Use `error.code` (an `ErrorCode` value) to drive programmatic logic such as retry behavior. Use `error.message` and `error.apiError` for logging and user-facing messages.
+</Tip>
+
+---
+
+## `ErrorCode` values
+
+All possible error codes returned in `StripeError.code`.
+
+### Integration errors
+
+Errors that indicate a problem in how the SDK has been integrated. These typically represent programming mistakes and should not occur in production.
+
+| Code | Description |
+|------|-------------|
+| `CANCEL_FAILED` | A cancel operation was attempted but failed |
+| `NOT_CONNECTED_TO_READER` | An operation requiring a reader was called, but no reader is connected |
+| `ALREADY_CONNECTED_TO_READER` | A connection was attempted while a reader is already connected |
+| `BLUETOOTH_PERMISSION_DENIED` | The app does not have the required Bluetooth permissions |
+| `CONFIRM_INVALID_PAYMENT_INTENT` | The PaymentIntent passed to `confirmPaymentIntent` is in an invalid state |
+| `CONFIRM_INVALID_SETUP_INTENT` | The SetupIntent passed to `confirmSetupIntent` is in an invalid state |
+| `INVALID_CLIENT_SECRET` | The provided client secret is malformed or invalid |
+| `UNSUPPORTED_OPERATION` | The operation is not supported in the current configuration |
+| `UNEXPECTED_OPERATION` | An unexpected SDK operation was triggered |
+| `UNSUPPORTED_SDK` | The SDK version is not supported |
+| `USB_PERMISSION_DENIED` | The app does not have USB permission |
+| `MISSING_PREREQUISITE` | A required prerequisite step was not completed |
+| `MISSING_REQUIRED_PARAMETER` | A required parameter was not provided |
+| `INVALID_REQUIRED_PARAMETER` | A required parameter has an invalid value |
+| `INVALID_TIP_PARAMETER` | The tip parameter is invalid |
+| `INVALID_MOTO_CONFIGURATION` | The MOTO configuration is invalid |
+| `TAP_TO_PAY_LIBRARY_NOT_INCLUDED` | The Tap to Pay library is not included in the build |
+| `TAP_TO_PAY_UNSUPPORTED_DEVICE` | The device does not support Tap to Pay |
+| `TAP_TO_PAY_UNSUPPORTED_ANDROID_VERSION` | The Android version does not support Tap to Pay |
+| `TAP_TO_PAY_DEVICE_TAMPERED` | The device has been tampered with and cannot be used for Tap to Pay |
+| `TAP_TO_PAY_INSECURE_ENVIRONMENT` | Tap to Pay cannot run in an insecure environment |
+| `TAP_TO_PAY_DEBUG_NOT_SUPPORTED` | Tap to Pay is not supported in debug builds |
+| `TAP_TO_PAY_UNSUPPORTED_PROCESSOR` | The configured processor does not support Tap to Pay |
+| `OFFLINE_MODE_UNSUPPORTED_ANDROID_VERSION` | The Android version does not support offline mode |
+
+### User errors
+
+Errors triggered by user actions or environmental conditions.
+
+| Code | Description |
+|------|-------------|
+| `CANCELED` | The operation was canceled by the user |
+| `LOCATION_SERVICES_DISABLED` | Location services are disabled on the device |
+| `BLUETOOTH_SCAN_TIMED_OUT` | Bluetooth discovery timed out without finding a reader |
+| `BLUETOOTH_LOW_ENERGY_UNSUPPORTED` | Bluetooth Low Energy is not supported on this device |
+| `READER_SOFTWARE_UPDATE_FAILED_BATTERY_LOW` | Update failed because the reader battery is too low |
+| `READER_SOFTWARE_UPDATE_FAILED_INTERRUPTED` | Update was interrupted before it could complete |
+| `CARD_INSERT_NOT_READ` | An inserted card could not be read |
+| `CARD_SWIPE_NOT_READ` | A swiped card could not be read |
+| `CARD_READ_TIMED_OUT` | Card reading timed out |
+| `CARD_REMOVED` | The card was removed before reading completed |
+| `CUSTOMER_CONSENT_REQUIRED` | Customer consent is required before proceeding |
+| `CARD_LEFT_IN_READER` | A card was left in the reader at the start of a new transaction |
+| `USB_DISCOVERY_TIMED_OUT` | USB reader discovery timed out |
+| `FEATURE_NOT_ENABLED_ON_ACCOUNT` | The requested feature is not enabled on the Stripe account |
+
+### Reader and hardware errors
+
+Errors related to reader hardware or communication.
+
+| Code | Description |
+|------|-------------|
+| `READER_BUSY` | The reader is busy with another operation |
+| `READER_COMMUNICATION_ERROR` | Communication with the reader failed |
+| `READER_TAMPERED` | The reader has been tampered with |
+| `BLUETOOTH_ERROR` | A general Bluetooth error occurred |
+| `BLUETOOTH_DISCONNECTED` | The Bluetooth connection was lost |
+| `BLUETOOTH_RECONNECT_STARTED` | The SDK is attempting to reconnect via Bluetooth |
+| `USB_DISCONNECTED` | The USB connection was lost |
+| `USB_RECONNECT_STARTED` | The SDK is attempting to reconnect via USB |
+| `READER_CONNECTED_TO_ANOTHER_DEVICE` | The reader is already connected to another device |
+| `READER_BATTERY_CRITICALLY_LOW` | The reader's battery is critically low |
+| `READER_SOFTWARE_UPDATE_FAILED` | A software update failed for an unspecified reason |
+| `READER_SOFTWARE_UPDATE_FAILED_READER_ERROR` | A software update failed due to a reader error |
+| `READER_SOFTWARE_UPDATE_FAILED_SERVER_ERROR` | A software update failed due to a server error |
+| `TAP_TO_PAY_NFC_DISABLED` | NFC is disabled on the device, required for Tap to Pay |
+| `UNSUPPORTED_READER_VERSION` | The reader's firmware is too old to be used with this SDK version |
+| `GENERIC_READER_ERROR` | A generic reader error occurred |
+
+### Unexpected errors
+
+| Code | Description |
+|------|-------------|
+| `UNEXPECTED_SDK_ERROR` | An unexpected error occurred within the SDK |
+
+### Payment errors
+
+| Code | Description |
+|------|-------------|
+| `DECLINED_BY_STRIPE_API` | The payment was declined by the Stripe API; check `apiError.declineCode` |
+| `DECLINED_BY_READER` | The payment was declined by the reader itself |
+
+### Network errors
+
+| Code | Description |
+|------|-------------|
+| `REQUEST_TIMED_OUT` | The request to the Stripe API timed out |
+| `STRIPE_API_CONNECTION_ERROR` | Could not connect to the Stripe API |
+| `STRIPE_API_ERROR` | The Stripe API returned an error |
+| `STRIPE_API_RESPONSE_DECODING_ERROR` | The API response could not be decoded |
+| `CONNECTION_TOKEN_PROVIDER_ERROR` | The connection token provider returned an error |
+| `SESSION_EXPIRED` | The SDK session has expired |
+| `ANDROID_API_LEVEL_ERROR` | The Android API level is too low for this operation |
+
+### Offline and currency errors
+
+| Code | Description |
+|------|-------------|
+| `AMOUNT_EXCEEDS_MAX_OFFLINE_AMOUNT` | The transaction amount exceeds the maximum allowed for offline payments |
+| `OFFLINE_PAYMENTS_DATABASE_TOO_LARGE` | The local offline payments database is too large |
+| `READER_CONNECTION_NOT_AVAILABLE_OFFLINE` | Reader connection is not available in offline mode |
+| `LOCATION_CONNECTION_NOT_AVAILABLE_OFFLINE` | Location connection is not available in offline mode |
+| `NO_LAST_SEEN_ACCOUNT` | No account has been seen; cannot operate offline |
+| `INVALID_OFFLINE_CURRENCY` | The currency is not supported for offline payments |
+| `CARD_SWIPE_NOT_AVAILABLE` | Card swipe is not available for this transaction |
+| `INTERAC_NOT_SUPPORTED_OFFLINE` | Interac is not supported for offline payments |
+| `ONLINE_PIN_NOT_SUPPORTED_OFFLINE` | Online PIN entry is not supported offline |
+| `MOBILE_WALLET_NOT_SUPPORTED_ON_SETUP_INTENTS` | Mobile wallets cannot be used with SetupIntents |
+| `OFFLINE_AND_CARD_EXPIRED` | The card is expired and the payment is offline |
+| `OFFLINE_TRANSACTION_DECLINED` | The offline transaction was declined |
+| `OFFLINE_COLLECT_AND_CONFIRM_MISMATCH` | The collect and confirm calls used different offline modes |
+| `OFFLINE_TESTMODE_PAYMENT_IN_LIVEMODE` | A test-mode payment was stored but the SDK is in live mode |
+| `OFFLINE_LIVEMODE_PAYMENT_IN_TESTMODE` | A live-mode payment was stored but the SDK is in test mode |
+| `OFFLINE_PAYMENT_INTENT_NOT_FOUND` | The offline PaymentIntent could not be found |
+| `MISSING_EMV_DATA` | Required EMV data is missing |
+| `CONNECTION_TOKEN_PROVIDER_ERROR_WHILE_FORWARDING` | Token provider error occurred while forwarding an offline payment |
+| `ACCOUNT_ID_MISMATCH_WHILE_FORWARDING` | Account ID mismatch while forwarding an offline payment |
+| `FORCE_OFFLINE_WITH_FEATURE_DISABLED` | `force_offline` was used but the offline feature is disabled |
+| `NOT_CONNECTED_TO_INTERNET_AND_REQUIRE_ONLINE_SET` | No internet connection and `require_online` mode is set |
+| `TEST_CARD_IN_LIVEMODE` | A test card was used in live mode |
+
+### Collect Inputs errors
+
+| Code | Description |
+|------|-------------|
+| `COLLECT_INPUTS_APPLICATION_ERROR` | An application error occurred during input collection |
+| `COLLECT_INPUTS_TIMED_OUT` | Input collection timed out |
+| `COLLECT_INPUTS_INVALID_PARAMETER` | An invalid parameter was passed to the collect inputs API |
+| `COLLECT_INPUTS_UNSUPPORTED` | Input collection is not supported on this reader |
+
+### Reader settings, security, and surcharge errors
+
+| Code | Description |
+|------|-------------|
+| `READER_SETTINGS_ERROR` | An error occurred while reading or writing reader settings |
+| `READER_MISSING_ENCRYPTION_KEYS` | Required encryption keys are missing from the reader |
+| `OFFLINE_ENCRYPTION_KEYS_UNAVAILABLE` | Encryption keys are unavailable in offline mode |
+| `INVALID_SURCHARGE_PARAMETER` | The surcharge parameter is invalid |
+| `READER_COMMUNICATION_SSL_ERROR` | An SSL error occurred when communicating with the reader |
+| `ALLOW_REDISPLAY_INVALID` | The `allowRedisplay` parameter has an invalid value |
+| `CANCELED_DUE_TO_INTEGRATION_ERROR` | The operation was canceled due to an integration error |
+
+### Printer errors
+
+| Code | Description |
+|------|-------------|
+| `PRINTER_BUSY` | The printer is busy |
+| `PRINTER_PAPERJAM` | The printer has a paper jam |
+| `PRINTER_OUT_OF_PAPER` | The printer is out of paper |
+| `PRINTER_COVER_OPEN` | The printer cover is open |
+| `PRINTER_ABSENT` | No printer is present |
+| `PRINTER_UNAVAILABLE` | The printer is unavailable |
+| `PRINTER_ERROR` | A general printer error occurred |
+
+### Tap to Pay request errors
+
+| Code | Description |
+|------|-------------|
+| `TAP_TO_PAY_READER_REQUEST_INTERRUPTED` | A Tap to Pay reader request was interrupted |
+| `CARD_NOT_SUPPORTED` | The presented card is not supported |
+| `TAP_TO_PAY_READER_MERCHANT_BLOCKED` | The merchant is blocked from using Tap to Pay. *(iOS only)* |

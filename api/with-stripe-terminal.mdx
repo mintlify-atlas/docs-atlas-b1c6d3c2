@@ -1,0 +1,126 @@
+---
+title: 'withStripeTerminal'
+description: 'Higher-Order Component that injects Stripe Terminal SDK methods and state into class components.'
+---
+
+`withStripeTerminal` is a Higher-Order Component (HOC) that wraps a React component and injects all Stripe Terminal SDK methods and state as props. It is intended for use with **class components** that cannot use React hooks directly.
+
+<Tip>
+  If you are writing a function component, use the [`useStripeTerminal`](/api/use-stripe-terminal) hook instead. It provides the same interface with less boilerplate.
+</Tip>
+
+## Signature
+
+```typescript
+function withStripeTerminal<Props>(
+  WrappedComponent: React.ComponentType<Props>
+): React.ComponentType<Props>
+```
+
+The HOC returns a new component with the same `Props` merged with `WithStripeTerminalProps`. The wrapped component receives all Terminal methods and state as additional props.
+
+## WithStripeTerminalProps
+
+`WithStripeTerminalProps` is the type of the injected props. It is identical to the return type of [`useStripeTerminal`](/api/use-stripe-terminal) — every method, state property, and the `emitter` EventEmitter are available.
+
+```typescript
+import type { WithStripeTerminalProps } from '@stripe/stripe-terminal-react-native';
+```
+
+The injected props include:
+
+- All methods documented in [`useStripeTerminal`](/api/use-stripe-terminal) (e.g. `initialize`, `discoverReaders`, `connectReader`, `createPaymentIntent`, etc.)
+- State properties: `connectedReader`, `discoveredReaders`, `loading`, `isInitialized`
+- `emitter`: a React Native `EventEmitter` instance for subscribing to Terminal events
+
+## Event constants
+
+The following event name constants are exported from `@stripe/stripe-terminal-react-native` and can be used with the injected `emitter`:
+
+| Constant | Description |
+|---|---|
+| `CHANGE_CONNECTION_STATUS` | Reader connection status changed |
+| `CHANGE_PAYMENT_STATUS` | Payment status changed |
+| `FINISH_DISCOVERING_READERS` | Reader discovery completed |
+| `FINISH_INSTALLING_UPDATE` | Firmware update installation completed |
+| `REQUEST_READER_DISPLAY_MESSAGE` | Reader requests a message to display |
+| `REQUEST_READER_INPUT` | Reader requests input from the user |
+| `REPORT_AVAILABLE_UPDATE` | A firmware update is available |
+| `REPORT_UPDATE_PROGRESS` | Firmware update installation progress |
+| `START_INSTALLING_UPDATE` | Firmware update installation started |
+| `UPDATE_DISCOVERED_READERS` | Discovered reader list updated |
+| `START_READER_RECONNECT` | Reader auto-reconnect started |
+| `READER_RECONNECT_SUCCEED` | Reader auto-reconnect succeeded |
+| `READER_RECONNECT_FAIL` | Reader auto-reconnect failed |
+| `CHANGE_OFFLINE_STATUS` | Offline status changed |
+| `FORWARD_PAYMENT_INTENT` | Offline payment intent forwarded |
+| `REPORT_FORWARDING_ERROR` | Error forwarding an offline payment intent |
+
+## Usage
+
+```typescript
+import React, { Component } from 'react';
+import {
+  withStripeTerminal,
+  CHANGE_CONNECTION_STATUS,
+  UPDATE_DISCOVERED_READERS,
+  type WithStripeTerminalProps,
+} from '@stripe/stripe-terminal-react-native';
+import type { EmitterSubscription } from 'react-native';
+
+type Props = WithStripeTerminalProps & {
+  // your own props
+};
+
+class ReaderScreen extends Component<Props> {
+  private connectionStatusSubscription?: EmitterSubscription;
+  private discoveredReadersSubscription?: EmitterSubscription;
+
+  componentDidMount() {
+    const { emitter, initialize, discoverReaders } = this.props;
+
+    // Initialize the SDK
+    initialize();
+
+    // Subscribe to events via the emitter
+    this.connectionStatusSubscription = emitter?.addListener(
+      CHANGE_CONNECTION_STATUS,
+      (status) => {
+        console.log('Connection status changed:', status);
+      }
+    );
+
+    this.discoveredReadersSubscription = emitter?.addListener(
+      UPDATE_DISCOVERED_READERS,
+      (readers) => {
+        console.log('Discovered readers updated:', readers);
+      }
+    );
+
+    // Start discovery
+    discoverReaders({ discoveryMethod: 'bluetoothScan', simulated: true });
+  }
+
+  componentWillUnmount() {
+    this.connectionStatusSubscription?.remove();
+    this.discoveredReadersSubscription?.remove();
+  }
+
+  render() {
+    const { connectedReader, discoveredReaders, loading } = this.props;
+
+    if (loading) {
+      return <ActivityIndicator />;
+    }
+
+    return (
+      <View>
+        <Text>Connected: {connectedReader?.id ?? 'None'}</Text>
+        <Text>Discovered: {discoveredReaders.length} readers</Text>
+      </View>
+    );
+  }
+}
+
+export default withStripeTerminal(ReaderScreen);
+```

@@ -1,0 +1,168 @@
+---
+title: 'Refunds'
+description: 'Issue in-person refunds using the Stripe Terminal React Native SDK.'
+---
+
+The SDK supports in-person refunds via `processRefund`. You can refund by PaymentIntent ID (with client secret) or by charge ID.
+
+<Note>
+  In-person refunds require the card to be physically present. If the card is not available, issue a refund from the Stripe Dashboard or via the Stripe API instead.
+</Note>
+
+## Refund by PaymentIntent ID
+
+Use `RefundParamsWithPaymentIntentId` when you have the PaymentIntent ID and its client secret.
+
+```typescript
+import type {
+  RefundParamsWithPaymentIntentId,
+  ProcessRefundResultType,
+} from '@stripe/stripe-terminal-react-native';
+
+const { processRefund } = useStripeTerminal();
+
+const { refund, error }: ProcessRefundResultType = await processRefund({
+  paymentIntentId: 'pi_abc123',
+  clientSecret: 'pi_abc123_secret_xyz',
+  amount: 500,       // amount to refund in cents
+  currency: 'usd',
+  refundApplicationFee: false,
+  reverseTransfer: false,
+  customerCancellation: 'enableIfAvailable',
+  metadata: { reason: 'customer_request' },
+} satisfies RefundParamsWithPaymentIntentId);
+
+if (error) {
+  console.error('Refund failed:', error.message);
+  return;
+}
+
+console.log('Refund status:', refund?.status);
+// Refund.Status: 'succeeded' | 'pending' | 'failed' | 'unknown'
+```
+
+## Refund by charge ID
+
+Use `RefundParamsWithChargeId` when you have the original charge ID.
+
+```typescript
+import type { RefundParamsWithChargeId } from '@stripe/stripe-terminal-react-native';
+
+const { refund, error } = await processRefund({
+  chargeId: 'ch_abc123',
+  amount: 500,
+  currency: 'usd',
+  refundApplicationFee: false,
+  reverseTransfer: false,
+  customerCancellation: 'enableIfAvailable',
+  metadata: { reason: 'defective_item' },
+} satisfies RefundParamsWithChargeId);
+
+if (error) {
+  console.error('Refund failed:', error.message);
+  return;
+}
+```
+
+## Cancel a refund
+
+If the reader is waiting for card presentation and you need to abort:
+
+```typescript
+const { cancelProcessRefund } = useStripeTerminal();
+
+const { error } = await cancelProcessRefund();
+
+if (error) {
+  console.error('Cancel failed:', error.message);
+}
+```
+
+## Refund result type
+
+`processRefund` returns a `ProcessRefundResultType` with a `refund` property of type `Refund.Props`.
+
+```typescript
+type ProcessRefundResultType = {
+  refund?: Refund.Props;
+  error?: StripeError;
+};
+```
+
+The `Refund.Props` type contains:
+
+```typescript
+type Refund = {
+  id: string;
+  amount?: number;                         // refund amount in cents
+  chargeId?: string;
+  paymentIntentId?: string;
+  currency?: string;
+  status?: 'succeeded' | 'failed' | 'pending' | 'unknown';
+  reason?: string;
+  failureReason?: string;
+  description?: string;
+  receiptNumber?: string;
+  metadata?: Record<string, string>;
+  paymentMethodDetails?: PaymentMethodDetails;
+  created?: string;
+};
+```
+
+## Full example
+
+```typescript
+import React, { useState } from 'react';
+import { Button, Text, View } from 'react-native';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+import type { Refund } from '@stripe/stripe-terminal-react-native';
+
+export function RefundScreen() {
+  const [refundResult, setRefundResult] = useState<Refund.Props | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const { processRefund, cancelProcessRefund } = useStripeTerminal();
+
+  const handleRefund = async () => {
+    setErrorMsg(null);
+
+    const { refund, error } = await processRefund({
+      paymentIntentId: 'pi_abc123',
+      clientSecret: 'pi_abc123_secret_xyz',
+      amount: 1000,
+      currency: 'usd',
+      customerCancellation: 'enableIfAvailable',
+    });
+
+    if (error) {
+      setErrorMsg(error.message);
+      return;
+    }
+
+    setRefundResult(refund ?? null);
+  };
+
+  return (
+    <View>
+      <Button title="Issue Refund" onPress={handleRefund} />
+      <Button title="Cancel" onPress={() => cancelProcessRefund()} />
+      {refundResult && <Text>Refund {refundResult.status}: {refundResult.id}</Text>}
+      {errorMsg && <Text>Error: {errorMsg}</Text>}
+    </View>
+  );
+}
+```
+
+## Params reference
+
+| Parameter | Type | Required | Description |
+|---|---|---|---|
+| `paymentIntentId` | `string` | Yes (or `chargeId`) | ID of the PaymentIntent to refund. |
+| `clientSecret` | `string` | Yes (with `paymentIntentId`) | Client secret for the PaymentIntent. |
+| `chargeId` | `string` | Yes (or `paymentIntentId`) | ID of the charge to refund. |
+| `amount` | `number` | Yes | Amount to refund in the smallest currency unit. |
+| `currency` | `string` | Yes | Three-letter ISO currency code. |
+| `refundApplicationFee` | `boolean` | No | Whether to refund the application fee. |
+| `reverseTransfer` | `boolean` | No | Whether to reverse the transfer. |
+| `customerCancellation` | `CustomerCancellation` | No | Whether the customer can cancel on the reader. |
+| `metadata` | `Record<string, string>` | No | Arbitrary key-value metadata. |

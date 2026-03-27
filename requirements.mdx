@@ -1,0 +1,121 @@
+---
+title: 'Requirements'
+description: 'Platform requirements, permissions, and dependencies for the Stripe Terminal React Native SDK.'
+---
+
+Before integrating the Stripe Terminal React Native SDK, make sure your project meets the requirements below for your target platform.
+
+## JavaScript and TypeScript
+
+The SDK uses TypeScript features available in **Babel 7.9.0 and above**. If your project uses a TypeScript transformer instead of Babel, install the `plugin-transform-typescript` Babel plugin.
+
+The SDK is distributed with full TypeScript type definitions — no separate `@types` package is needed.
+
+## React Native
+
+The SDK declares `react` and `react-native` as peer dependencies with no version constraint (`"*"`), so it is compatible with any supported React Native version.
+
+## Platform requirements
+
+<Tabs>
+  <Tab title="Android">
+    ### SDK versions
+
+    | Requirement | Value |
+    |---|---|
+    | Minimum API level (`minSdkVersion`) | 26 |
+    | Compile SDK version (`compileSdkVersion`) | 35 |
+    | Target SDK version (`targetSdkVersion`) | 35 |
+
+    <Warning>
+      Attempting to override `minSdkVersion` to decrease the minimum supported API level **will not work**. The SDK performs a runtime API level validation and will reject devices below API level 26 even if your build configuration allows a lower minimum.
+    </Warning>
+
+    ### Required permissions
+
+    Add the following permissions to your `AndroidManifest.xml`:
+
+    ```xml
+    <!-- Location permission (required for Bluetooth reader discovery on all Android versions) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+
+    <!-- Bluetooth permissions (required on Android 12 / API 31 and above) -->
+    <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+    ```
+
+    ### Requesting permissions at runtime
+
+    The SDK provides a `requestNeededAndroidPermissions` utility to request all required permissions at runtime. Call it before starting reader discovery.
+
+    ```typescript
+    import { requestNeededAndroidPermissions } from '@stripe/stripe-terminal-react-native';
+
+    const { error } = await requestNeededAndroidPermissions({
+      accessFineLocation: {
+        title: 'Location Permission',
+        message: 'Stripe Terminal needs access to your location',
+        buttonPositive: 'Accept',
+      },
+    });
+
+    if (error) {
+      console.error('Permission denied:', error);
+    }
+    ```
+
+    On Android 12 (API 31) and above, the utility also requests `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN`. On earlier versions, only `ACCESS_FINE_LOCATION` is requested.
+
+    <Note>
+      The dialog text for `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN` cannot be customized — Android does not support custom rationale for those permissions.
+    </Note>
+  </Tab>
+
+  <Tab title="iOS">
+    ### Minimum OS version
+
+    The SDK requires **iOS 15.1 or above**. This is enforced in the podspec:
+
+    ```ruby
+    s.platforms = { ios: '15.1' }
+    ```
+
+    Ensure your Xcode project's deployment target is set to `15.1` or higher.
+
+    ### Required Info.plist keys
+
+    iOS requires usage description strings for Bluetooth and location access. Add the following keys to your app's `Info.plist`:
+
+    ```xml
+    <!-- Required for Bluetooth reader discovery (iOS 13+) -->
+    <key>NSBluetoothAlwaysUsageDescription</key>
+    <string>This app uses Bluetooth to connect to Stripe Terminal card readers.</string>
+
+    <!-- Required on iOS 12 and below (include for backward compatibility if needed) -->
+    <key>NSBluetoothPeripheralUsageDescription</key>
+    <string>This app uses Bluetooth to connect to Stripe Terminal card readers.</string>
+
+    <!-- Required for reader discovery methods that use location -->
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>This app uses your location to connect to nearby Stripe Terminal card readers.</string>
+    ```
+
+    <Warning>
+      If these keys are missing, iOS will silently deny Bluetooth and location access, and reader discovery will fail without a clear error message.
+    </Warning>
+
+    ### CocoaPods dependency
+
+    The SDK depends on the native `StripeTerminal` CocoaPod. Run `pod install` (or `npx pod-install`) after adding the package:
+
+    ```bash
+    cd ios && pod install
+    ```
+
+    The podspec pins the native SDK to a compatible version:
+
+    ```ruby
+    s.dependency 'StripeTerminal', '~> 5.1.1'
+    ```
+  </Tab>
+</Tabs>

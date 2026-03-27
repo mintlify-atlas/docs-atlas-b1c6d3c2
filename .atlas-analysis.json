@@ -1,0 +1,131 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Stripe Terminal React Native",
+  "projectDescription": "A React Native SDK for integrating Stripe Terminal to accept in-person card payments using pre-certified card readers.",
+  "theme": "luma",
+  "primaryColor": "#543cfc",
+  "lightColor": "#a494fc",
+  "darkColor": "#0c2444",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "requirements"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/provider-and-hooks",
+              "concepts/reader-discovery",
+              "concepts/payments",
+              "concepts/offline-mode"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/connecting-readers",
+              "guides/collecting-payments",
+              "guides/setup-intents",
+              "guides/refunds",
+              "guides/reader-updates",
+              "guides/tap-to-pay",
+              "guides/testing"
+            ]
+          },
+          {
+            "group": "Platform Setup",
+            "pages": [
+              "platform/android",
+              "platform/ios",
+              "platform/expo"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Components",
+            "pages": [
+              "api/stripe-terminal-provider",
+              "api/with-stripe-terminal"
+            ]
+          },
+          {
+            "group": "Hooks",
+            "pages": [
+              "api/use-stripe-terminal"
+            ]
+          },
+          {
+            "group": "Types",
+            "pages": [
+              "api/types/reader",
+              "api/types/payment-intent",
+              "api/types/setup-intent",
+              "api/types/errors"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Connect to pre-certified Stripe Terminal card readers via Bluetooth, USB, Internet, or Tap to Pay",
+    "Collect in-person card payments with full PaymentIntent lifecycle management",
+    "Support for offline payments with automatic forwarding when back online",
+    "Save payment methods for future use via SetupIntents",
+    "Process refunds directly through the terminal reader",
+    "Collect custom inputs (signatures, phone, email, numeric, text) on the reader display",
+    "Reader software update management with progress tracking",
+    "EasyConnect API for simplified reader discovery and connection",
+    "Tap to Pay on iPhone and Android with customizable UX configuration",
+    "Collect NFC UID and magstripe data with CollectData API"
+  ],
+  "publicApiSurface": [
+    "StripeTerminalProvider",
+    "AppsOnDevicesConnectionTokenProvider",
+    "withStripeTerminal",
+    "useStripeTerminal",
+    "useStripeTerminal#initialize",
+    "useStripeTerminal#discoverReaders",
+    "useStripeTerminal#connectReader",
+    "useStripeTerminal#disconnectReader",
+    "useStripeTerminal#easyConnect",
+    "useStripeTerminal#createPaymentIntent",
+    "useStripeTerminal#collectPaymentMethod",
+    "useStripeTerminal#confirmPaymentIntent",
+    "useStripeTerminal#processPaymentIntent",
+    "useStripeTerminal#cancelPaymentIntent",
+    "useStripeTerminal#retrievePaymentIntent",
+    "useStripeTerminal#createSetupIntent",
+    "useStripeTerminal#collectSetupIntentPaymentMethod",
+    "useStripeTerminal#confirmSetupIntent",
+    "useStripeTerminal#processSetupIntent",
+    "useStripeTerminal#cancelSetupIntent",
+    "useStripeTerminal#processRefund",
+    "useStripeTerminal#collectInputs",
+    "useStripeTerminal#collectData",
+    "useStripeTerminal#getOfflineStatus",
+    "useStripeTerminal#installAvailableUpdate",
+    "useStripeTerminal#setReaderDisplay",
+    "useStripeTerminal#setTapToPayUxConfiguration",
+    "useStripeTerminal#print",
+    "useStripeTerminal#supportsReadersOfType",
+    "requestNeededAndroidPermissions",
+    "ErrorCode",
+    "Reader.Type",
+    "PaymentIntent.Type",
+    "SetupIntent.Type",
+    "StripeError"
+  ]
+}

@@ -1,0 +1,109 @@
+---
+title: 'iOS Setup'
+description: 'Configure the Stripe Terminal React Native SDK for iOS, including CocoaPods, Info.plist permissions, and Tap to Pay on iPhone.'
+---
+
+## Requirements
+
+The SDK is compatible with apps targeting **iOS 15.1 or above**.
+
+## Installation
+
+<Steps>
+  <Step title="Add the package">
+    ```bash
+    yarn add @stripe/stripe-terminal-react-native
+    ```
+  </Step>
+  <Step title="Install CocoaPods dependencies">
+    ```bash
+    cd ios && pod install
+    ```
+
+    The podspec pulls in the native `StripeTerminal` iOS SDK automatically:
+
+    ```ruby stripe-terminal-react-native.podspec
+    s.platforms = { ios: '15.1' }
+    s.dependency 'React-Core'
+    s.dependency 'StripeTerminal', '~> 5.1.1'
+    ```
+  </Step>
+</Steps>
+
+## Info.plist permissions
+
+Add the following keys to your `Info.plist`. The values are shown with recommended default descriptions — update them to match your app's use case.
+
+```xml ios/YourApp/Info.plist
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+
+  <!-- Required for all Bluetooth readers -->
+  <key>NSBluetoothAlwaysUsageDescription</key>
+  <string>This app uses Bluetooth to connect to supported card readers.</string>
+
+  <!-- Required for older iOS versions (kept for compatibility) -->
+  <key>NSBluetoothPeripheralUsageDescription</key>
+  <string>Bluetooth access is required in order to connect to supported bluetooth card readers.</string>
+
+  <!-- Required for Bluetooth reader discovery -->
+  <key>NSLocationWhenInUseUsageDescription</key>
+  <string>Location access is required in order to accept payments.</string>
+
+  <!-- Required if your app requests always-on location access -->
+  <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+  <string>Location access is required in order to accept payments.</string>
+
+  <!-- Required for internet-connected readers on local networks -->
+  <key>NSLocalNetworkUsageDescription</key>
+  <string>This app uses the local WiFi network to connect to supported card readers.</string>
+
+</dict>
+</plist>
+```
+
+<Note>
+  All five keys are required if your app supports both Bluetooth and internet-connected readers. If you only use internet readers, you may omit the Bluetooth and location keys — but App Store review may still ask about them.
+</Note>
+
+## Supported discovery methods
+
+The following discovery methods are available on iOS:
+
+| Method | Description |
+| --- | --- |
+| `bluetoothScan` | Discover Bluetooth readers in range |
+| `bluetoothProximity` | Connect to the nearest Bluetooth reader |
+| `internet` | Discover internet-connected readers |
+| `tapToPay` | Use iPhone as a reader (requires iOS 16.7+) |
+| `usb` | USB readers (private preview, iPads with M-series chips only) |
+
+<Warning>
+  USB discovery is in **private preview** and is only available on iPads with M-series chips. Contact Stripe to request access.
+</Warning>
+
+## Tap to Pay on iPhone
+
+<Note>
+  Tap to Pay on iPhone requires **iOS 16.7 or later**.
+</Note>
+
+When calling `discoverReaders` with the `tapToPay` method, pass both required fields:
+
+```typescript
+const { error } = await discoverReaders({
+  discoveryMethod: 'tapToPay',
+  tosAcceptancePermitted: true,
+  merchantDisplayName: 'My Store',
+});
+```
+
+| Field | Description |
+| --- | --- |
+| `tosAcceptancePermitted` | Set to `true` to allow the SDK to show Stripe's Terms of Service to the user |
+| `merchantDisplayName` | Business name displayed on the Tap to Pay prompt |
+
+Both fields are required for the Tap to Pay flow to proceed.

@@ -1,0 +1,205 @@
+---
+title: 'Saving payment methods'
+description: 'Use SetupIntents to save customer payment methods for future use.'
+---
+
+A SetupIntent saves a customer's card for later use without charging them immediately. Use this flow when you want to store a card on file and charge it later in an off-session context.
+
+## Full flow
+
+<Steps>
+  <Step title="Create a SetupIntent">
+    Create the SetupIntent on your server or directly via the SDK.
+  </Step>
+  <Step title="Collect the payment method">
+    Call `collectSetupIntentPaymentMethod` to have the reader collect the card.
+  </Step>
+  <Step title="Confirm the SetupIntent">
+    Call `confirmSetupIntent` (or `processSetupIntent` for a combined call).
+  </Step>
+  <Step title="Save the payment method ID">
+    Retrieve the generated payment method ID from the confirmed SetupIntent and store it for future charges.
+  </Step>
+</Steps>
+
+## Create a SetupIntent
+
+<Tabs>
+  <Tab title="Retrieve from server">
+    Create the SetupIntent on your backend and retrieve it by client secret.
+
+    ```typescript
+    const { retrieveSetupIntent } = useStripeTerminal();
+
+    const response = await fetch('https://your-server.com/create-setup-intent', {
+      method: 'POST',
+      body: JSON.stringify({ customerId: 'cus_abc123' }),
+    });
+    const { clientSecret } = await response.json();
+
+    const { setupIntent, error } = await retrieveSetupIntent(clientSecret);
+
+    if (error) {
+      console.error('Failed to retrieve SetupIntent:', error.message);
+      return;
+    }
+    ```
+  </Tab>
+  <Tab title="Create directly">
+    ```typescript
+    import type { CreateSetupIntentParams } from '@stripe/stripe-terminal-react-native';
+
+    const { createSetupIntent } = useStripeTerminal();
+
+    const { setupIntent, error } = await createSetupIntent({
+      customer: 'cus_abc123',
+      description: 'Save card for recurring billing',
+      metadata: { plan: 'premium' },
+      onBehalfOf: 'acct_connected123',
+      paymentMethodTypes: ['card_present'],
+      usage: 'off_session',
+    } satisfies CreateSetupIntentParams);
+
+    if (error) {
+      console.error('Failed to create SetupIntent:', error.message);
+      return;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Collect the payment method
+
+```typescript
+import type { CollectSetupIntentPaymentMethodParams } from '@stripe/stripe-terminal-react-native';
+
+const { collectSetupIntentPaymentMethod } = useStripeTerminal();
+
+const { setupIntent: collectedIntent, error } =
+  await collectSetupIntentPaymentMethod({
+    setupIntent,
+    allowRedisplay: 'always',
+    collectionReason: 'saveCard',
+    customerCancellation: 'enableIfAvailable',
+  } satisfies CollectSetupIntentPaymentMethodParams);
+
+if (error) {
+  console.error('Collection failed:', error.message);
+  return;
+}
+```
+
+### allowRedisplay values
+
+The `allowRedisplay` parameter controls how the saved payment method can be shown to customers in future sessions.
+
+<AccordionGroup>
+  <Accordion title="always">
+    The payment method can be shown to the customer for any future transaction. Use this when the customer explicitly agreed to save the card for future purchases.
+  </Accordion>
+  <Accordion title="limited">
+    The payment method can be shown for transactions that are directly related to the original setup context. For example, a subscription renewal, but not an unrelated charge.
+  </Accordion>
+  <Accordion title="unspecified">
+    No preference is specified. Stripe uses the default behavior. Use this when you are unsure or when the customer has not been informed.
+  </Accordion>
+</AccordionGroup>
+
+### collectionReason values
+
+| Value | Description |
+|---|---|
+| `saveCard` | The card is being saved for future charges. |
+| `verify` | The card is being verified (e.g., for identity or authorisation). |
+| `unspecified` | No specific reason. |
+
+### MOTO configuration
+
+```typescript
+await collectSetupIntentPaymentMethod({
+  setupIntent,
+  allowRedisplay: 'always',
+  motoConfiguration: {
+    skipCvc: true,
+  },
+});
+```
+
+## Confirm the SetupIntent
+
+### Two-step: collect then confirm
+
+```typescript
+const { confirmSetupIntent } = useStripeTerminal();
+
+const { setupIntent: confirmedIntent, error } = await confirmSetupIntent({
+  setupIntent: collectedIntent,
+});
+
+if (error) {
+  console.error('Confirmation failed:', error.message);
+  return;
+}
+
+// The payment method ID is now available
+console.log('Saved payment method:', confirmedIntent.paymentMethodId);
+console.log('SetupIntent status:', confirmedIntent.status);
+// SetupIntent.Status: 'succeeded' | 'requiresAction' | 'requiresConfirmation' | ...
+```
+
+### One-step: processSetupIntent
+
+`processSetupIntent` combines collection and confirmation into a single call.
+
+```typescript
+import type { ProcessSetupIntentParams } from '@stripe/stripe-terminal-react-native';
+
+const { processSetupIntent } = useStripeTerminal();
+
+const { setupIntent: processedIntent, error } = await processSetupIntent({
+  setupIntent,
+  allowRedisplay: 'always',
+  collectionReason: 'saveCard',
+  customerCancellation: 'enableIfAvailable',
+  motoConfiguration: {
+    skipCvc: false,
+  },
+} satisfies ProcessSetupIntentParams);
+
+if (error) {
+  console.error('Process failed:', error.message);
+  return;
+}
+
+console.log('Saved payment method ID:', processedIntent.paymentMethodId);
+```
+
+## Cancel a SetupIntent
+
+```typescript
+const { cancelSetupIntent, cancelCollectSetupIntent } = useStripeTerminal();
+
+// Cancel an in-progress collectSetupIntentPaymentMethod call
+await cancelCollectSetupIntent();
+
+// Cancel the SetupIntent itself
+const { setupIntent: canceledIntent, error } = await cancelSetupIntent({
+  setupIntent,
+});
+```
+
+## Use the saved payment method
+
+After confirmation, use `confirmedIntent.paymentMethodId` to create a PaymentIntent from your server:
+
+```typescript
+// On your server:
+await stripe.paymentIntents.create({
+  amount: 2000,
+  currency: 'usd',
+  customer: 'cus_abc123',
+  payment_method: confirmedIntent.paymentMethodId,
+  confirm: true,
+  off_session: true,
+});
+```

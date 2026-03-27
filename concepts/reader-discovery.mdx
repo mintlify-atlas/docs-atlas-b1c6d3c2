@@ -1,0 +1,384 @@
+---
+title: 'Reader Discovery'
+description: 'Discover nearby Stripe Terminal readers using Bluetooth, internet, USB, or Tap to Pay discovery methods.'
+---
+
+Before you can take a payment, you need to discover and connect to a reader. The discovery flow has three steps:
+
+<Steps>
+  <Step title="Call discoverReaders">
+    Pass a `DiscoverReadersParams` object specifying the discovery method and any options. The call is long-running — it does not return until discovery ends or is cancelled.
+  </Step>
+  <Step title="Receive reader updates">
+    As readers are found, the `onUpdateDiscoveredReaders` callback fires with the current list of discovered `Reader.Type` objects.
+  </Step>
+  <Step title="Connect or cancel">
+    Call `connectReader` with a discovered reader to establish a connection, or call `cancelDiscovering` to stop discovery.
+  </Step>
+</Steps>
+
+```tsx
+import { useEffect, useState } from 'react';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+import type { Reader } from '@stripe/stripe-terminal-react-native';
+
+function DiscoveryScreen() {
+  const [readers, setReaders] = useState<Reader.Type[]>([]);
+
+  const { discoverReaders, cancelDiscovering, connectReader } =
+    useStripeTerminal({
+      onUpdateDiscoveredReaders: (discovered) => {
+        setReaders(discovered);
+      },
+      onFinishDiscoveringReaders: (error) => {
+        if (error) console.error('Discovery finished with error:', error);
+      },
+    });
+
+  useEffect(() => {
+    discoverReaders({
+      discoveryMethod: 'bluetoothScan',
+      simulated: true,
+    });
+
+    return () => {
+      cancelDiscovering();
+    };
+  }, [discoverReaders, cancelDiscovering]);
+
+  const handleConnect = async (reader: Reader.Type) => {
+    const { reader: connectedReader, error } = await connectReader({
+      discoveryMethod: 'bluetoothScan',
+      reader,
+      locationId: 'tml_your_location_id',
+    });
+    if (error) console.error('Connect error:', error);
+    else console.log('Connected to:', connectedReader?.serialNumber);
+  };
+
+  return null; // render your reader list UI here
+}
+```
+
+---
+
+## Discovery methods
+
+The `discoveryMethod` field on `DiscoverReadersParams` determines which transport the SDK uses to scan for readers.
+
+<Tabs>
+  <Tab title="iOS">
+    iOS supports `bluetoothScan`, `bluetoothProximity`, `internet`, `tapToPay`, and `usb` (USB is in private preview for iPads with M-series chips).
+
+    ### bluetoothScan
+
+    Scans for Bluetooth LE readers in the vicinity.
+
+    ```typescript
+    type DiscoverBluetoothScanParams = {
+      discoveryMethod: 'bluetoothScan';
+      timeout?: number;    // Seconds before discovery times out
+      simulated?: boolean; // Use simulated reader for testing
+    };
+    ```
+
+    ```tsx
+    discoverReaders({ discoveryMethod: 'bluetoothScan', simulated: true });
+    ```
+
+    ### bluetoothProximity
+
+    Discovers a single Bluetooth reader that is held in very close physical proximity to the device (used with the Chipper 1X and Chipper 2X).
+
+    ```typescript
+    type DiscoverBluetoothProximityParams = {
+      discoveryMethod: 'bluetoothProximity';
+      simulated?: boolean;
+    };
+    ```
+
+    ```tsx
+    discoverReaders({ discoveryMethod: 'bluetoothProximity', simulated: false });
+    ```
+
+    ### internet
+
+    Discovers readers registered to your Stripe account that are connected to the internet.
+
+    ```typescript
+    type DiscoverInternetParams = {
+      discoveryMethod: 'internet';
+      timeout?: number;
+      simulated?: boolean;
+      locationId?: string;               // Filter by Stripe location ID
+      discoveryFilter?: DiscoveryFilter; // Filter by reader ID or serial number
+    };
+    ```
+
+    ```tsx
+    discoverReaders({
+      discoveryMethod: 'internet',
+      locationId: 'tml_your_location_id',
+      discoveryFilter: { serialNumber: 'STR_S700_1234' },
+    });
+    ```
+
+    ### tapToPay
+
+    Uses the NFC chip built into the iOS device to accept contactless payments (requires iOS 16+ and a supported device).
+
+    ```typescript
+    type DiscoverTapToPayParams = {
+      discoveryMethod: 'tapToPay';
+      simulated?: boolean;
+    };
+    ```
+
+    ```tsx
+    discoverReaders({ discoveryMethod: 'tapToPay', simulated: false });
+    ```
+
+    ### usb (private preview)
+
+    Discovers readers connected via USB. Available on iPads with M-series chips.
+
+    ```typescript
+    type DiscoverUsbParams = {
+      discoveryMethod: 'usb';
+      timeout?: number;
+      simulated?: boolean;
+    };
+    ```
+  </Tab>
+  <Tab title="Android">
+    Android supports `bluetoothScan`, `internet`, `tapToPay`, `usb`, and `appsOnDevices`.
+
+    ### bluetoothScan
+
+    Scans for Bluetooth LE readers in the vicinity.
+
+    ```typescript
+    type DiscoverBluetoothScanParams = {
+      discoveryMethod: 'bluetoothScan';
+      timeout?: number;    // Seconds before discovery times out
+      simulated?: boolean; // Use simulated reader for testing
+    };
+    ```
+
+    ```tsx
+    discoverReaders({ discoveryMethod: 'bluetoothScan', simulated: true });
+    ```
+
+    ### internet
+
+    Discovers readers registered to your Stripe account that are connected to the internet.
+
+    ```typescript
+    type DiscoverInternetParams = {
+      discoveryMethod: 'internet';
+      timeout?: number;
+      simulated?: boolean;
+      locationId?: string;
+      discoveryFilter?: DiscoveryFilter;
+    };
+    ```
+
+    ```tsx
+    discoverReaders({
+      discoveryMethod: 'internet',
+      locationId: 'tml_your_location_id',
+    });
+    ```
+
+    ### tapToPay
+
+    Uses the NFC chip built into the Android device to accept contactless payments.
+
+    ```typescript
+    type DiscoverTapToPayParams = {
+      discoveryMethod: 'tapToPay';
+      simulated?: boolean;
+    };
+    ```
+
+    ### usb
+
+    Discovers readers connected via USB cable.
+
+    ```typescript
+    type DiscoverUsbParams = {
+      discoveryMethod: 'usb';
+      timeout?: number;
+      simulated?: boolean;
+    };
+    ```
+
+    ### appsOnDevices (Android only)
+
+    Used when your app runs directly on a Stripe smart reader. No discovery parameters are needed because the app is already on the device acting as the reader.
+
+    ```typescript
+    type DiscoverAppsOnDevicesParams = {
+      discoveryMethod: 'appsOnDevices';
+    };
+    ```
+
+    ```tsx
+    discoverReaders({ discoveryMethod: 'appsOnDevices' });
+    ```
+  </Tab>
+</Tabs>
+
+### DiscoveryFilter
+
+For the `internet` discovery method you can narrow results to a specific reader:
+
+```typescript
+// No filter — returns all readers at the location
+type DiscoveryFilterNone = {};
+
+// Filter by Stripe reader ID
+type DiscoveryFilterReaderId = {
+  readerId: string;
+};
+
+// Filter by hardware serial number
+type DiscoveryFilterSerialNumber = {
+  serialNumber: string;
+};
+```
+
+---
+
+## The Reader.Type object
+
+Each discovered reader is represented as a `Reader.Type` object:
+
+```typescript
+export type Reader.Type = {
+  id: string;
+  serialNumber: string;
+  deviceType: Reader.DeviceType;
+  locationStatus: LocationStatus;    // 'notSet' | 'set' | 'unknown'
+  location?: Location;
+  locationId?: string;
+  label?: string;
+  batteryLevel?: number;
+  deviceSoftwareVersion?: string;
+  availableUpdate?: Reader.SoftwareUpdate;
+  status: Reader.NetworkStatus;      // 'online' | 'offline'
+  ipAddress?: string;
+  simulated?: boolean;
+  livemode?: boolean;
+  // iOS-only
+  batteryStatus?: Reader.BatteryStatus; // 'critical' | 'low' | 'nominal' | 'unknown'
+  isCharging?: number;
+};
+```
+
+### DeviceType enum
+
+The `deviceType` field identifies the reader hardware model:
+
+```typescript
+export type Reader.DeviceType =
+  | 'chipper1X'
+  | 'chipper2X'
+  | 'stripeM2'
+  | 'wiseCube'
+  | 'wisePad3'
+  | 'wisePosE'
+  | 'wisePosEDevkit'
+  | 'wisePad3s'
+  | 'stripeS700Devkit'
+  | 'stripeS700'
+  | 'stripeS710Devkit'
+  | 'stripeS710'
+  | 'cotsDevice'
+  | 'tapToPay'
+  | 'etna';
+```
+
+### SoftwareUpdate
+
+If `availableUpdate` is set on a discovered reader, a firmware update is available:
+
+```typescript
+export type Reader.SoftwareUpdate = {
+  deviceSoftwareVersion: string;
+  estimatedUpdateTime:
+    | 'estimateLessThan1Minute'
+    | 'estimate1To2Minutes'
+    | 'estimate2To5Minutes'
+    | 'estimate5To15Minutes';
+  requiredAt?: string; // ISO 8601 date after which connection is blocked until updated
+};
+```
+
+---
+
+## EasyConnect
+
+`easyConnect` is a convenience method that combines discovery and connection into a single call. Use it when you want to connect to a reader without managing the discovery lifecycle manually.
+
+```typescript
+export type EasyConnectParams =
+  | EasyConnectInternetParams
+  | EasyConnectTapToPayParams
+  | EasyConnectAppsOnDevicesParams;
+
+export type EasyConnectInternetParams = {
+  discoveryMethod: 'internet';
+  timeout?: number;
+  simulated?: boolean;
+  locationId?: string;
+  discoveryFilter?: DiscoveryFilter;
+  failIfInUse?: boolean;  // Fail if the reader is already in use by another POS
+};
+
+export type EasyConnectTapToPayParams = {
+  discoveryMethod: 'tapToPay';
+  simulated?: boolean;
+  locationId: string;   // Required
+  autoReconnectOnUnexpectedDisconnect?: boolean;
+  merchantDisplayName?: string;
+  onBehalfOf?: string;
+  tosAcceptancePermitted?: boolean;
+};
+
+export type EasyConnectAppsOnDevicesParams = {
+  discoveryMethod: 'appsOnDevices';
+};
+```
+
+```tsx
+const { easyConnect, cancelEasyConnect } = useStripeTerminal();
+
+// Connect to an internet reader at a specific location in one step
+const { reader, error } = await easyConnect({
+  discoveryMethod: 'internet',
+  locationId: 'tml_your_location_id',
+});
+
+if (error) {
+  console.error('EasyConnect failed:', error);
+} else {
+  console.log('Connected via EasyConnect to:', reader?.serialNumber);
+}
+```
+
+<Tip>
+  Use `easyConnect` for simple integrations where you have a specific location or reader in mind. Use `discoverReaders` + `connectReader` when you need to display a reader picker UI to the user.
+</Tip>
+
+---
+
+## Android permissions
+
+For Bluetooth discovery on Android, the SDK requires location and Bluetooth permissions. Use the provided utility to request them before starting discovery:
+
+```tsx
+import { requestNeededAndroidPermissions } from '@stripe/stripe-terminal-react-native';
+
+await requestNeededAndroidPermissions();
+```

@@ -1,0 +1,574 @@
+---
+title: 'Reader Types'
+description: 'TypeScript types for Stripe Terminal readers, discovery, connection, and hardware state.'
+---
+
+## `Reader.Type`
+
+Represents a physical or simulated Stripe Terminal reader. The base fields are shared across platforms; some fields are platform-specific.
+
+<ResponseField name="id" type="string" required>
+  Unique identifier for the reader.
+</ResponseField>
+
+<ResponseField name="serialNumber" type="string" required>
+  The reader's serial number.
+</ResponseField>
+
+<ResponseField name="deviceType" type="Reader.DeviceType" required>
+  The hardware model of the reader. See [`Reader.DeviceType`](#reader-devicetype).
+</ResponseField>
+
+<ResponseField name="status" type="Reader.NetworkStatus" required>
+  Whether the reader is online or offline. See [`Reader.NetworkStatus`](#reader-networkstatus).
+</ResponseField>
+
+<ResponseField name="locationStatus" type="LocationStatus" required>
+  Whether a location has been assigned to this reader. See [`LocationStatus`](#locationstatus).
+</ResponseField>
+
+<ResponseField name="label" type="string">
+  A custom label assigned to the reader in the Stripe Dashboard.
+</ResponseField>
+
+<ResponseField name="batteryLevel" type="number">
+  Battery charge level as a value between 0 and 1.
+</ResponseField>
+
+<ResponseField name="locationId" type="string">
+  The ID of the location the reader is registered to.
+</ResponseField>
+
+<ResponseField name="deviceSoftwareVersion" type="string">
+  The version of the reader's current firmware.
+</ResponseField>
+
+<ResponseField name="simulated" type="boolean">
+  Whether this reader is a simulated reader used for testing.
+</ResponseField>
+
+<ResponseField name="availableUpdate" type="Reader.SoftwareUpdate">
+  A pending software update, if one is available. See [`Reader.SoftwareUpdate`](#reader-softwareupdate).
+</ResponseField>
+
+<ResponseField name="ipAddress" type="string">
+  The reader's IP address (internet-connected readers only).
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean">
+  Whether the reader is operating in live mode.
+</ResponseField>
+
+<ResponseField name="location" type="Location">
+  The full location object associated with the reader. See [`Location`](#location).
+</ResponseField>
+
+### iOS-specific fields
+
+<ResponseField name="batteryStatus" type="Reader.BatteryStatus">
+  A categorical description of the battery level. See [`Reader.BatteryStatus`](#reader-batterystatus). *(iOS only)*
+</ResponseField>
+
+<ResponseField name="isCharging" type="number">
+  Non-zero when the reader is currently charging. *(iOS only)*
+</ResponseField>
+
+### Android-specific fields
+
+<ResponseField name="baseUrl" type="string">
+  Base URL for the reader's local API. *(Android only)*
+</ResponseField>
+
+<ResponseField name="bootloaderVersion" type="string">
+  Version of the reader's bootloader. *(Android only)*
+</ResponseField>
+
+<ResponseField name="configVersion" type="string">
+  Version of the reader's configuration. *(Android only)*
+</ResponseField>
+
+<ResponseField name="emvKeyProfileId" type="string">
+  EMV key profile identifier. *(Android only)*
+</ResponseField>
+
+<ResponseField name="firmwareVersion" type="string">
+  Version of the reader's firmware. *(Android only)*
+</ResponseField>
+
+<ResponseField name="hardwareVersion" type="string">
+  Version of the reader's hardware. *(Android only)*
+</ResponseField>
+
+<ResponseField name="macKeyProfileId" type="string">
+  MAC key profile identifier. *(Android only)*
+</ResponseField>
+
+<ResponseField name="pinKeyProfileId" type="string">
+  PIN key profile identifier. *(Android only)*
+</ResponseField>
+
+<ResponseField name="trackKeyProfileId" type="string">
+  Track key profile identifier. *(Android only)*
+</ResponseField>
+
+<ResponseField name="settingsVersion" type="string">
+  Version of the reader's settings. *(Android only)*
+</ResponseField>
+
+<ResponseField name="pinKeysetId" type="string">
+  PIN keyset identifier. *(Android only)*
+</ResponseField>
+
+---
+
+## `Reader.DeviceType`
+
+Identifies the physical hardware model of a reader.
+
+```typescript
+type DeviceType =
+  | 'chipper1X'
+  | 'chipper2X'
+  | 'stripeM2'
+  | 'wiseCube'
+  | 'wisePad3'
+  | 'wisePosE'
+  | 'wisePosEDevkit'
+  | 'wisePad3s'
+  | 'stripeS700Devkit'
+  | 'stripeS700'
+  | 'stripeS710Devkit'
+  | 'stripeS710'
+  | 'cotsDevice'
+  | 'tapToPay'
+  | 'etna';
+```
+
+| Value | Description |
+|-------|-------------|
+| `chipper1X` | Stripe Chipper 1X |
+| `chipper2X` | Stripe Chipper 2X |
+| `stripeM2` | Stripe Reader M2 |
+| `wiseCube` | Verifone WiseCube |
+| `wisePad3` | Verifone WisePad 3 |
+| `wisePosE` | Verifone WisePOS E |
+| `wisePosEDevkit` | Verifone WisePOS E DevKit |
+| `wisePad3s` | Verifone WisePad 3s |
+| `stripeS700Devkit` | Stripe S700 DevKit |
+| `stripeS700` | Stripe Reader S700 |
+| `stripeS710Devkit` | Stripe S710 DevKit |
+| `stripeS710` | Stripe Reader S710 |
+| `cotsDevice` | Commercial off-the-shelf Android device |
+| `tapToPay` | Tap to Pay on iPhone or Android |
+| `etna` | Stripe Reader ETNA |
+
+---
+
+## `Reader.SoftwareUpdate`
+
+Describes a pending software update for a reader.
+
+<ResponseField name="deviceSoftwareVersion" type="string" required>
+  The version of software contained in the update.
+</ResponseField>
+
+<ResponseField name="estimatedUpdateTime" type="Reader.EstimatedUpdateTime" required>
+  An estimate of how long the update will take to install. See [`Reader.EstimatedUpdateTime`](#reader-estimatedupdatetime).
+</ResponseField>
+
+<ResponseField name="requiredAt" type="string">
+  ISO 8601 date string after which the update will be required before the reader can be used.
+</ResponseField>
+
+---
+
+## `Reader.EstimatedUpdateTime`
+
+A categorical estimate for how long a software update will take.
+
+```typescript
+type EstimatedUpdateTime =
+  | 'estimateLessThan1Minute'
+  | 'estimate1To2Minutes'
+  | 'estimate2To5Minutes'
+  | 'estimate5To15Minutes';
+```
+
+| Value | Description |
+|-------|-------------|
+| `estimateLessThan1Minute` | Less than one minute |
+| `estimate1To2Minutes` | 1 to 2 minutes |
+| `estimate2To5Minutes` | 2 to 5 minutes |
+| `estimate5To15Minutes` | 5 to 15 minutes |
+
+---
+
+## `Reader.ConnectionStatus`
+
+The current state of the SDK's connection to a reader.
+
+```typescript
+type ConnectionStatus =
+  | 'connected'
+  | 'connecting'
+  | 'notConnected'
+  | 'discovering'
+  | 'reconnecting';
+```
+
+| Value | Description |
+|-------|-------------|
+| `connected` | A reader is connected |
+| `connecting` | Connection is in progress |
+| `notConnected` | No reader is connected |
+| `discovering` | Scanning for nearby readers |
+| `reconnecting` | Attempting to re-establish a lost connection |
+
+---
+
+## `Reader.NetworkStatus`
+
+Indicates whether the reader has a network connection.
+
+```typescript
+type NetworkStatus = 'offline' | 'online';
+```
+
+---
+
+## `Reader.BatteryStatus`
+
+A categorical description of the reader's battery level. *(iOS only)*
+
+```typescript
+type BatteryStatus = 'critical' | 'low' | 'nominal' | 'unknown';
+```
+
+| Value | Description |
+|-------|-------------|
+| `critical` | Battery is critically low; the reader may shut down soon |
+| `low` | Battery is low |
+| `nominal` | Battery level is sufficient |
+| `unknown` | Battery status cannot be determined |
+
+---
+
+## `Reader.BatteryLevel`
+
+Detailed battery information emitted via the `onDidUpdateBatteryLevel` event.
+
+<ResponseField name="batteryLevel" type="number" required>
+  Battery charge as a value between 0 and 1.
+</ResponseField>
+
+<ResponseField name="batteryStatus" type="Reader.BatteryStatus" required>
+  Categorical battery status. See [`Reader.BatteryStatus`](#reader-batterystatus).
+</ResponseField>
+
+<ResponseField name="isCharging" type="boolean" required>
+  Whether the reader is currently charging.
+</ResponseField>
+
+---
+
+## `Reader.SimulateUpdateType`
+
+Controls the simulated software update behavior when using the simulator.
+
+```typescript
+type SimulateUpdateType =
+  | 'random'
+  | 'available'
+  | 'none'
+  | 'required'
+  | 'lowBattery'
+  | 'lowBatterySucceedConnect'
+  | 'requiredForOffline';
+```
+
+| Value | Description |
+|-------|-------------|
+| `random` | Randomly simulate an update or no update |
+| `available` | Simulate an available (optional) update |
+| `none` | No update available |
+| `required` | Simulate a required update that must be installed before use |
+| `lowBattery` | Simulate a failed update due to low battery |
+| `lowBatterySucceedConnect` | Simulate low battery but allow connection to succeed |
+| `requiredForOffline` | Simulate an update required for offline mode |
+
+---
+
+## `Reader.InputOptions`
+
+The card input methods a reader is requesting the customer to use.
+
+```typescript
+type InputOptions = 'insertCard' | 'swipeCard' | 'tapCard';
+```
+
+---
+
+## `Reader.DisplayMessage`
+
+Messages the SDK requests be displayed to the customer during payment collection.
+
+```typescript
+type DisplayMessage =
+  | 'insertCard'
+  | 'insertOrSwipeCard'
+  | 'multipleContactlessCardsDetected'
+  | 'removeCard'
+  | 'retryCard'
+  | 'swipeCard'
+  | 'tryAnotherCard'
+  | 'tryAnotherReadMethod'
+  | 'checkMobileDevice'
+  | 'cardRemovedTooEarly';
+```
+
+---
+
+## `Reader.DisconnectReason`
+
+The reason a reader disconnected unexpectedly.
+
+```typescript
+type DisconnectReason =
+  | 'disconnectRequested'
+  | 'rebootRequested'
+  | 'securityReboot'
+  | 'criticallyLowBattery'
+  | 'poweredOff'
+  | 'bluetoothDisabled'
+  | 'bluetoothSignalLost'
+  | 'usbDisconnected'
+  | 'idlePowerDown'
+  | 'unknown';
+```
+
+| Value | Description |
+|-------|-------------|
+| `disconnectRequested` | Disconnect was requested by the application |
+| `rebootRequested` | Reader is rebooting |
+| `securityReboot` | Reader rebooted due to a security event |
+| `criticallyLowBattery` | Reader shut down due to critically low battery |
+| `poweredOff` | Reader was powered off |
+| `bluetoothDisabled` | Bluetooth was disabled on the host device |
+| `bluetoothSignalLost` | Bluetooth signal was lost |
+| `usbDisconnected` | USB cable was disconnected |
+| `idlePowerDown` | Reader powered down after being idle |
+| `unknown` | Unknown reason |
+
+---
+
+## `Reader.ReaderSettings`
+
+Result type for reader settings retrieval. Contains either accessibility settings or an error.
+
+```typescript
+type ReaderSettings =
+  | { accessibility?: Accessibility; error?: undefined }
+  | { accessibility?: undefined; error?: StripeError };
+```
+
+---
+
+## `Reader.Accessibility`
+
+Accessibility settings for a reader.
+
+<ResponseField name="textToSpeechStatus" type="Reader.ReaderTextToSpeechStatus" required>
+  The current text-to-speech status. See [`Reader.ReaderTextToSpeechStatus`](#reader-readertexttospeechstatus).
+</ResponseField>
+
+<ResponseField name="error" type="StripeError">
+  An error that occurred while retrieving accessibility settings.
+</ResponseField>
+
+---
+
+## `Reader.ReaderTextToSpeechStatus`
+
+Indicates how text-to-speech audio is being output on a reader.
+
+```typescript
+type ReaderTextToSpeechStatus = 'off' | 'headphones' | 'speakers';
+```
+
+| Value | Description |
+|-------|-------------|
+| `off` | Text-to-speech is disabled |
+| `headphones` | Audio routed through headphones |
+| `speakers` | Audio routed through the reader's speakers |
+
+---
+
+## `Reader.ReaderSettingsParameters`
+
+Parameters for updating reader settings.
+
+<ResponseField name="textToSpeechViaSpeakers" type="boolean" required>
+  When `true`, routes text-to-speech audio through the reader's built-in speakers instead of headphones.
+</ResponseField>
+
+---
+
+## `Reader.ReaderSupportParams`
+
+Parameters used to check whether a given reader configuration is supported.
+
+<ResponseField name="deviceType" type="Reader.DeviceType" required>
+  The device type to check support for.
+</ResponseField>
+
+<ResponseField name="discoveryMethod" type="Reader.DiscoveryMethod" required>
+  The discovery method to check support for.
+</ResponseField>
+
+<ResponseField name="simulated" type="boolean">
+  Whether to check support for the simulated variant.
+</ResponseField>
+
+---
+
+## `Reader.ReaderSupportResult`
+
+Result of a reader support check.
+
+<ResponseField name="readerSupportResult" type="boolean" required>
+  Whether the specified reader configuration is supported on the current device.
+</ResponseField>
+
+<ResponseField name="error" type="StripeError">
+  An error that occurred during the support check.
+</ResponseField>
+
+---
+
+## `Reader.DiscoveryMethod`
+
+The method used to discover readers. Available values differ by platform.
+
+### iOS
+
+```typescript
+type IOS.DiscoveryMethod =
+  | 'bluetoothProximity'
+  | 'bluetoothScan'
+  | 'internet'
+  | 'tapToPay'
+  | 'usb';
+```
+
+<Note>
+  USB discovery is in private preview for iPads with M-series chips. Contact Stripe support to join the preview.
+</Note>
+
+### Android
+
+```typescript
+type Android.DiscoveryMethod =
+  | 'bluetoothScan'
+  | 'internet'
+  | 'tapToPay'
+  | 'appsOnDevices'
+  | 'usb';
+```
+
+| Value | Description |
+|-------|-------------|
+| `bluetoothProximity` | Discover Bluetooth readers using proximity (iOS only) |
+| `bluetoothScan` | Scan for Bluetooth readers |
+| `internet` | Discover internet-connected readers |
+| `tapToPay` | Use the device itself as a Tap to Pay reader |
+| `usb` | Discover readers connected via USB |
+| `appsOnDevices` | Discover readers via Apps on Devices (Android only) |
+
+---
+
+## `Location`
+
+A Stripe Terminal location.
+
+<ResponseField name="id" type="string" required>
+  The location's unique identifier.
+</ResponseField>
+
+<ResponseField name="livemode" type="boolean" required>
+  Whether this location is in live mode.
+</ResponseField>
+
+<ResponseField name="displayName" type="string">
+  Human-readable name for the location.
+</ResponseField>
+
+<ResponseField name="address" type="Address">
+  The physical address of the location.
+
+  <Expandable title="Address properties">
+    <ResponseField name="city" type="string">
+      City.
+    </ResponseField>
+    <ResponseField name="country" type="string">
+      Two-letter country code (ISO 3166-1 alpha-2).
+    </ResponseField>
+    <ResponseField name="postalCode" type="string">
+      Postal code.
+    </ResponseField>
+    <ResponseField name="line1" type="string">
+      First line of the street address.
+    </ResponseField>
+    <ResponseField name="line2" type="string">
+      Second line of the street address.
+    </ResponseField>
+    <ResponseField name="state" type="string">
+      State, province, or region.
+    </ResponseField>
+  </Expandable>
+</ResponseField>
+
+---
+
+## `Address`
+
+A physical mailing address.
+
+<ResponseField name="city" type="string">
+  City.
+</ResponseField>
+
+<ResponseField name="country" type="string">
+  Two-letter country code (ISO 3166-1 alpha-2).
+</ResponseField>
+
+<ResponseField name="postalCode" type="string">
+  Postal code.
+</ResponseField>
+
+<ResponseField name="line1" type="string">
+  First line of the street address.
+</ResponseField>
+
+<ResponseField name="line2" type="string">
+  Second line of the street address.
+</ResponseField>
+
+<ResponseField name="state" type="string">
+  State, province, or region.
+</ResponseField>
+
+---
+
+## `LocationStatus`
+
+Indicates whether a location has been assigned to a reader.
+
+```typescript
+type LocationStatus = 'notSet' | 'set' | 'unknown';
+```
+
+| Value | Description |
+|-------|-------------|
+| `notSet` | No location has been assigned |
+| `set` | A location is assigned |
+| `unknown` | Location assignment status cannot be determined |

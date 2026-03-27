@@ -1,0 +1,147 @@
+---
+title: 'Expo Setup'
+description: 'Integrate the Stripe Terminal React Native SDK in an Expo project using the built-in config plugin for managed and bare workflows.'
+---
+
+The SDK ships with an [Expo config plugin](https://docs.expo.dev/config-plugins/introduction/) that automatically configures the native permissions and settings required for both iOS and Android.
+
+## Installation
+
+```bash
+yarn add @stripe/stripe-terminal-react-native
+```
+
+## Add the plugin
+
+Add `@stripe/stripe-terminal-react-native` to the `plugins` array in your `app.json` or `app.config.js`:
+
+```json app.json
+{
+  "expo": {
+    "plugins": ["@stripe/stripe-terminal-react-native"]
+  }
+}
+```
+
+### Plugin options
+
+You can pass optional configuration to customize the permission descriptions and enable optional features:
+
+```json app.json
+{
+  "expo": {
+    "plugins": [
+      [
+        "@stripe/stripe-terminal-react-native",
+        {
+          "bluetoothBackgroundMode": false,
+          "locationWhenInUsePermission": "Location access is required in order to accept payments.",
+          "bluetoothPeripheralPermission": "Bluetooth access is required in order to connect to supported bluetooth card readers.",
+          "bluetoothAlwaysUsagePermission": "This app uses Bluetooth to connect to supported card readers.",
+          "localNetworkUsagePermission": "This app uses the local WiFi network to connect to supported card readers.",
+          "tapToPayCheck": false,
+          "appDelegate": false
+        }
+      ]
+    ]
+  }
+}
+```
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `bluetoothBackgroundMode` | `boolean` | Adds `bluetooth-central` to `UIBackgroundModes` in `Info.plist` |
+| `locationWhenInUsePermission` | `string` | Custom description for `NSLocationWhenInUseUsageDescription` |
+| `bluetoothPeripheralPermission` | `string` | Custom description for `NSBluetoothPeripheralUsageDescription` |
+| `bluetoothAlwaysUsagePermission` | `string` | Custom description for `NSBluetoothAlwaysUsageDescription` |
+| `localNetworkUsagePermission` | `string` | Custom description for `NSLocalNetworkUsageDescription` |
+| `tapToPayCheck` | `boolean` | Injects the `TapToPay.isInTapToPayProcess()` guard into `MainApplication` |
+| `appDelegate` | `boolean` | Injects `TerminalApplicationDelegate.onCreate(this)` into `MainApplication` |
+
+## What the plugin does
+
+When you run `expo prebuild` (or EAS Build), the plugin automatically applies the following native configuration:
+
+**iOS (`Info.plist`)**
+- Adds `NSBluetoothAlwaysUsageDescription`
+- Adds `NSBluetoothPeripheralUsageDescription`
+- Adds `NSLocationWhenInUseUsageDescription`
+- Adds `NSLocalNetworkUsageDescription`
+- Optionally adds `bluetooth-central` to `UIBackgroundModes`
+- Adds a blank Swift file required for native modules with Swift files
+
+**Android (`AndroidManifest.xml`)**
+- Adds `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN` permissions
+- Adds `ACCESS_FINE_LOCATION` and `ACCESS_COARSE_LOCATION` permissions
+- Adds `android.jetifier.ignorelist=jackson-core` to `gradle.properties`
+
+## Managed vs. bare workflow
+
+<Tabs>
+  <Tab title="Managed workflow">
+    In a managed Expo project, the plugin handles all native configuration. You do not need to edit any native files manually.
+
+    <Steps>
+      <Step title="Install the package">
+        ```bash
+        yarn add @stripe/stripe-terminal-react-native
+        ```
+      </Step>
+      <Step title="Add the plugin to app.json">
+        ```json app.json
+        {
+          "expo": {
+            "plugins": ["@stripe/stripe-terminal-react-native"]
+          }
+        }
+        ```
+      </Step>
+      <Step title="Build with EAS Build">
+        The plugin runs automatically during the EAS Build process. No further native configuration is needed.
+
+        ```bash
+        eas build
+        ```
+      </Step>
+    </Steps>
+  </Tab>
+  <Tab title="Bare workflow">
+    In a bare React Native project with Expo tooling, run `expo prebuild` to apply the plugin, then follow the platform-specific guides for any additional manual configuration.
+
+    <Steps>
+      <Step title="Install the package">
+        ```bash
+        yarn add @stripe/stripe-terminal-react-native
+        ```
+      </Step>
+      <Step title="Add the plugin to app.json">
+        ```json app.json
+        {
+          "expo": {
+            "plugins": ["@stripe/stripe-terminal-react-native"]
+          }
+        }
+        ```
+      </Step>
+      <Step title="Run prebuild">
+        ```bash
+        npx expo prebuild
+        ```
+
+        This generates or updates the `ios/` and `android/` directories with the required native configuration.
+      </Step>
+      <Step title="Complete platform-specific setup">
+        After prebuild, review the platform guides for any additional steps:
+
+        - [Android Setup](/platform/android)
+        - [iOS Setup](/platform/ios)
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Version requirements
+
+<Note>
+  This SDK uses `@expo/config-plugins` version **7.8.4** or above. This corresponds to **Expo SDK 50+**. If you are on an older Expo SDK, upgrade before adding the plugin.
+</Note>

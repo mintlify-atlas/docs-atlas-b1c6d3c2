@@ -1,0 +1,255 @@
+---
+title: 'Connecting readers'
+description: 'Discover, connect, and manage Stripe Terminal readers in your React Native app.'
+---
+
+This guide covers the full reader connection lifecycle: checking device compatibility, discovering nearby readers, connecting with the appropriate method, and handling reconnection.
+
+## Check compatibility first
+
+Before starting discovery, verify the device and discovery method combination is supported using `supportsReadersOfType`. This is especially important for Tap to Pay, which requires specific hardware.
+
+```typescript
+const { supportsReadersOfType } = useStripeTerminal();
+
+const checkSupport = async () => {
+  const { readerSupportResult, error } = await supportsReadersOfType({
+    deviceType: 'tapToPay',
+    simulated: false,
+    discoveryMethod: 'tapToPay',
+  });
+
+  if (error) {
+    console.error('Support check failed:', error.message);
+    return;
+  }
+
+  console.log('Supported:', readerSupportResult);
+};
+```
+
+## Discover readers
+
+Call `discoverReaders` with a discovery method. The SDK emits discovered readers via the `onUpdateDiscoveredReaders` callback as they are found. Discovery runs continuously until you call `cancelDiscovering` or connect to a reader.
+
+<Tabs>
+  <Tab title="Bluetooth">
+    ```typescript
+    const { discoverReaders, cancelDiscovering } = useStripeTerminal({
+      onUpdateDiscoveredReaders: (readers) => {
+        setDiscoveredReaders(readers);
+      },
+      onFinishDiscoveringReaders: (error) => {
+        if (error) {
+          console.error('Discovery error:', error.message);
+        }
+      },
+    });
+
+    // Start discovery
+    const { error } = await discoverReaders({
+      discoveryMethod: 'bluetoothScan',
+      simulated: false,
+      timeout: 15,
+    });
+    ```
+  </Tab>
+  <Tab title="Internet">
+    ```typescript
+    const { error } = await discoverReaders({
+      discoveryMethod: 'internet',
+      simulated: false,
+      locationId: 'tml_location_id', // optional: filter by location
+    });
+    ```
+  </Tab>
+  <Tab title="USB">
+    ```typescript
+    const { error } = await discoverReaders({
+      discoveryMethod: 'usb',
+      simulated: false,
+    });
+    ```
+  </Tab>
+  <Tab title="Tap to Pay">
+    ```typescript
+    const { error } = await discoverReaders({
+      discoveryMethod: 'tapToPay',
+      simulated: false,
+    });
+    ```
+  </Tab>
+  <Tab title="Apps on Devices">
+    ```typescript
+    // Android only — no simulated param
+    const { error } = await discoverReaders({
+      discoveryMethod: 'appsOnDevices',
+    });
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+  `discoverReaders` resolves when discovery ends (either after cancellation, connection, or a timeout). Listen for newly found readers in `onUpdateDiscoveredReaders`.
+</Note>
+
+## Connect to a reader
+
+Once `onUpdateDiscoveredReaders` fires, pass one of the discovered `Reader.Type` objects to `connectReader`. The params type varies by discovery method.
+
+<Tabs>
+  <Tab title="Bluetooth">
+    ```typescript
+    import type { ConnectBluetoothReaderParams, Reader } from '@stripe/stripe-terminal-react-native';
+
+    const connectBluetooth = async (reader: Reader.Type) => {
+      const { reader: connectedReader, error } = await connectReader({
+        discoveryMethod: 'bluetoothScan',
+        reader,
+        locationId: 'tml_location_id', // required
+        autoReconnectOnUnexpectedDisconnect: true,
+      } satisfies ConnectBluetoothReaderParams);
+
+      if (error) {
+        console.error('Connection failed:', error.message);
+        return;
+      }
+
+      console.log('Connected to', connectedReader.serialNumber);
+    };
+    ```
+  </Tab>
+  <Tab title="Internet">
+    ```typescript
+    import type { ConnectInternetReaderParams, Reader } from '@stripe/stripe-terminal-react-native';
+
+    const connectInternet = async (reader: Reader.Type) => {
+      const { reader: connectedReader, error } = await connectReader({
+        discoveryMethod: 'internet',
+        reader,
+        failIfInUse: true, // reject connection if reader is already in use
+      } satisfies ConnectInternetReaderParams);
+
+      if (error) {
+        console.error('Connection failed:', error.message);
+        return;
+      }
+
+      console.log('Connected to', connectedReader.serialNumber);
+    };
+    ```
+  </Tab>
+  <Tab title="Tap to Pay">
+    ```typescript
+    import type { ConnectTapToPayParams, Reader } from '@stripe/stripe-terminal-react-native';
+
+    const connectTapToPay = async (reader: Reader.Type) => {
+      const { reader: connectedReader, error } = await connectReader({
+        discoveryMethod: 'tapToPay',
+        reader,
+        locationId: 'tml_location_id', // required
+        merchantDisplayName: 'My Store',
+        tosAcceptancePermitted: true,
+        autoReconnectOnUnexpectedDisconnect: true,
+      } satisfies ConnectTapToPayParams);
+
+      if (error) {
+        console.error('Connection failed:', error.message);
+        return;
+      }
+
+      console.log('Connected');
+    };
+    ```
+  </Tab>
+  <Tab title="Apps on Devices">
+    ```typescript
+    import type { ConnectAppsOnDevicesParams, Reader } from '@stripe/stripe-terminal-react-native';
+
+    const connectAppsOnDevices = async (reader: Reader.Type) => {
+      const { reader: connectedReader, error } = await connectReader({
+        discoveryMethod: 'appsOnDevices',
+        reader,
+      } satisfies ConnectAppsOnDevicesParams);
+
+      if (error) {
+        console.error('Connection failed:', error.message);
+        return;
+      }
+    };
+    ```
+  </Tab>
+</Tabs>
+
+## Query connection state
+
+You can check the current connection status and retrieve the connected reader at any time.
+
+```typescript
+const { getConnectionStatus, getConnectedReader } = useStripeTerminal();
+
+// Returns: 'notConnected' | 'connecting' | 'connected' | 'discovering' | 'reconnecting'
+const status = await getConnectionStatus();
+
+// Returns the currently connected Reader.Type, or null
+const reader = await getConnectedReader();
+console.log(reader?.serialNumber, reader?.deviceType, reader?.batteryLevel);
+```
+
+The `onDidChangeConnectionStatus` callback fires whenever the connection state changes.
+
+```typescript
+useStripeTerminal({
+  onDidChangeConnectionStatus: (status) => {
+    console.log('Connection status changed:', status);
+  },
+});
+```
+
+## Auto-reconnect on unexpected disconnection
+
+Set `autoReconnectOnUnexpectedDisconnect: true` when connecting to automatically retry the connection if the reader drops unexpectedly. Use the reconnect callbacks to update your UI.
+
+```typescript
+const { connectReader, cancelReaderReconnection } = useStripeTerminal({
+  onDidStartReaderReconnect: (reader, reason) => {
+    console.log('Reconnecting to', reader.serialNumber, 'reason:', reason);
+    // reason is Reader.DisconnectReason:
+    // 'disconnectRequested' | 'rebootRequested' | 'securityReboot'
+    // | 'criticallyLowBattery' | 'poweredOff' | 'bluetoothDisabled'
+    // | 'bluetoothSignalLost' | 'usbDisconnected' | 'idlePowerDown' | 'unknown'
+  },
+  onDidSucceedReaderReconnect: (reader) => {
+    console.log('Reconnected to', reader.serialNumber);
+  },
+  onDidFailReaderReconnect: (reader) => {
+    console.warn('Reconnection failed for', reader.serialNumber);
+  },
+  onDidDisconnect: (reason) => {
+    console.log('Disconnected, reason:', reason);
+  },
+});
+
+// To cancel an in-progress reconnection attempt:
+const { error } = await cancelReaderReconnection();
+```
+
+<Note>
+  `autoReconnectOnUnexpectedDisconnect` is supported for Bluetooth, USB, and Tap to Pay discovery methods. Internet-connected readers do not support auto-reconnect.
+</Note>
+
+## Disconnect and reboot
+
+```typescript
+const { disconnectReader, rebootReader } = useStripeTerminal();
+
+// Cleanly disconnect from the reader
+const { error } = await disconnectReader();
+
+// Reboot a connected smart reader (WisePOS E, S700, etc.)
+const { error: rebootError } = await rebootReader();
+```
+
+<Warning>
+  `rebootReader` is only supported on smart readers that run Stripe's point-of-sale application. Calling it on Bluetooth card readers has no effect.
+</Warning>

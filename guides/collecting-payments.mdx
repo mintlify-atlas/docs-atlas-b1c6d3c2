@@ -1,0 +1,270 @@
+---
+title: 'Collecting payments'
+description: 'Implement the full payment flow using the Stripe Terminal React Native SDK.'
+---
+
+This guide walks through the complete payment collection flow: creating a PaymentIntent, collecting a payment method from the reader, confirming the payment, and handling errors.
+
+## Payment flow overview
+
+<Steps>
+  <Step title="Create a PaymentIntent">
+    Create a PaymentIntent on your server or directly via the SDK and retrieve it in your app.
+  </Step>
+  <Step title="Collect a payment method">
+    Call `collectPaymentMethod` to prompt the reader to accept a card or NFC payment.
+  </Step>
+  <Step title="Confirm the payment">
+    Call `confirmPaymentIntent` (or use `processPaymentIntent` to combine both steps).
+  </Step>
+  <Step title="Handle the result">
+    Check for errors and update your UI based on the final PaymentIntent status.
+  </Step>
+</Steps>
+
+## Create a PaymentIntent
+
+You can create a PaymentIntent on your server and retrieve it by client secret, or create one directly from the SDK.
+
+<Tabs>
+  <Tab title="Retrieve from server">
+    Create the PaymentIntent on your backend, then retrieve it in your app using the client secret.
+
+    ```typescript
+    const { retrievePaymentIntent } = useStripeTerminal();
+
+    // Fetch the client secret from your server
+    const response = await fetch('https://your-server.com/create-payment-intent', {
+      method: 'POST',
+      body: JSON.stringify({ amount: 1000, currency: 'usd' }),
+    });
+    const { clientSecret } = await response.json();
+
+    const { paymentIntent, error } = await retrievePaymentIntent(clientSecret);
+
+    if (error) {
+      console.error('Failed to retrieve PaymentIntent:', error.message);
+      return;
+    }
+    ```
+  </Tab>
+  <Tab title="Create directly">
+    Create the PaymentIntent from the SDK. Requires your connection token provider to have the appropriate permissions.
+
+    ```typescript
+    import type { CreatePaymentIntentParams } from '@stripe/stripe-terminal-react-native';
+
+    const { createPaymentIntent } = useStripeTerminal();
+
+    const { paymentIntent, error } = await createPaymentIntent({
+      amount: 1000,           // in smallest currency unit (cents)
+      currency: 'usd',
+      captureMethod: 'automatic',
+      description: 'Order #1234',
+      customer: 'cus_abc123',
+      receiptEmail: 'customer@example.com',
+      metadata: { orderId: '1234' },
+      statementDescriptor: 'My Store',
+      statementDescriptorSuffix: 'Order',
+      onBehalfOf: 'acct_connected123', // for Connect platforms
+      applicationFeeAmount: 100,
+      transferDataDestination: 'acct_connected123',
+      offlineBehavior: 'prefer_online',
+    } satisfies CreatePaymentIntentParams);
+
+    if (error) {
+      console.error('Failed to create PaymentIntent:', error.message);
+      return;
+    }
+    ```
+  </Tab>
+</Tabs>
+
+## Collect a payment method
+
+Pass the retrieved `PaymentIntent` to `collectPaymentMethod`. The reader will wait for a card tap, dip, or swipe.
+
+```typescript
+import type { CollectPaymentMethodParams } from '@stripe/stripe-terminal-react-native';
+
+const { collectPaymentMethod } = useStripeTerminal();
+
+const { paymentIntent: collectedIntent, error } = await collectPaymentMethod({
+  paymentIntent,
+  skipTipping: false,
+  tipEligibleAmount: 1000, // amount eligible for tipping, in cents
+  customerCancellation: 'enableIfAvailable',
+} satisfies CollectPaymentMethodParams);
+
+if (error) {
+  console.error('Collection failed:', error.message);
+  return;
+}
+```
+
+### Tipping
+
+Use `skipTipping` to bypass the tipping screen entirely, or `tipEligibleAmount` to specify which portion of the total is tip-eligible.
+
+```typescript
+// Disable tipping
+await collectPaymentMethod({ paymentIntent, skipTipping: true });
+
+// Tip-eligible amount differs from the total (e.g., excluding tax)
+await collectPaymentMethod({
+  paymentIntent,
+  skipTipping: false,
+  tipEligibleAmount: 800, // $8.00 of a $10.00 total is eligible
+});
+```
+
+### Dynamic currency conversion
+
+```typescript
+await collectPaymentMethod({
+  paymentIntent,
+  requestDynamicCurrencyConversion: true,
+});
+```
+
+### Surcharge notice
+
+Display a surcharge notice on the reader screen before the customer presents their card.
+
+```typescript
+await collectPaymentMethod({
+  paymentIntent,
+  surchargeNotice: 'A 2% surcharge applies to credit card transactions.',
+});
+```
+
+### MOTO (mail-order / telephone-order)
+
+For card-not-present transactions, configure `motoConfiguration` to skip the CVC prompt.
+
+```typescript
+await collectPaymentMethod({
+  paymentIntent,
+  motoConfiguration: {
+    skipCvc: true,
+  },
+});
+```
+
+### Customer cancellation
+
+Control whether the customer can cancel on the reader.
+
+```typescript
+await collectPaymentMethod({
+  paymentIntent,
+  customerCancellation: 'disableIfAvailable', // 'enableIfAvailable' | 'disableIfAvailable' | 'unspecified'
+});
+```
+
+## Confirm the payment
+
+### Two-step: collect then confirm
+
+```typescript
+import type { ConfirmPaymentMethodParams } from '@stripe/stripe-terminal-react-native';
+
+const { confirmPaymentIntent } = useStripeTerminal();
+
+const { paymentIntent: confirmedIntent, error } = await confirmPaymentIntent({
+  paymentIntent: collectedIntent,
+} satisfies ConfirmPaymentMethodParams);
+
+if (error) {
+  console.error('Confirmation failed:', error.message);
+  return;
+}
+
+console.log('Payment succeeded, status:', confirmedIntent.status);
+// PaymentIntent.Status: 'succeeded' | 'requiresCapture' | 'requiresAction' | ...
+```
+
+### Apply a surcharge on confirmation
+
+```typescript
+import type { Surcharge } from '@stripe/stripe-terminal-react-native';
+
+await confirmPaymentIntent({
+  paymentIntent: collectedIntent,
+  surcharge: {
+    amount: 50, // surcharge amount in cents
+    consent: {
+      notice: 'A $0.50 surcharge has been applied.',
+      collection: 'enabled', // 'enabled' | 'disabled'
+    },
+  } satisfies Surcharge,
+});
+```
+
+### One-step: processPaymentIntent
+
+`processPaymentIntent` combines `collectPaymentMethod` and `confirmPaymentIntent` into a single call.
+
+```typescript
+import type { ProcessPaymentIntentParams } from '@stripe/stripe-terminal-react-native';
+
+const { processPaymentIntent } = useStripeTerminal();
+
+const { paymentIntent: processedIntent, error } = await processPaymentIntent({
+  paymentIntent,
+  skipTipping: false,
+  tipEligibleAmount: 1000,
+  customerCancellation: 'enableIfAvailable',
+  requestDynamicCurrencyConversion: false,
+  surchargeNotice: 'A surcharge may apply.',
+  surcharge: {
+    amount: 50,
+  },
+} satisfies ProcessPaymentIntentParams);
+```
+
+## Cancel a payment
+
+If the customer leaves or you need to abort, cancel the PaymentIntent.
+
+```typescript
+const { cancelPaymentIntent, cancelCollectPaymentMethod } = useStripeTerminal();
+
+// Cancel an in-progress collectPaymentMethod call
+await cancelCollectPaymentMethod();
+
+// Cancel the PaymentIntent itself
+const { paymentIntent: canceledIntent, error } = await cancelPaymentIntent({
+  paymentIntent,
+});
+```
+
+## Manual capture
+
+Create the PaymentIntent with `captureMethod: 'manual'` to authorize without capturing. Capture separately from your server.
+
+```typescript
+const { paymentIntent } = await createPaymentIntent({
+  amount: 1000,
+  currency: 'usd',
+  captureMethod: 'manual',
+});
+
+// After confirmPaymentIntent succeeds, the status will be 'requiresCapture'
+// Capture from your server: stripe.paymentIntents.capture(paymentIntent.id)
+```
+
+## Track payment status
+
+Call `getPaymentStatus` to read the current payment status synchronously, or use the `onDidChangePaymentStatus` callback for reactive updates.
+
+```typescript
+const { getPaymentStatus } = useStripeTerminal({
+  onDidChangePaymentStatus: (status) => {
+    // 'notReady' | 'ready' | 'processing' | 'waitingForInput'
+    console.log('Payment status:', status);
+  },
+});
+
+const currentStatus = await getPaymentStatus();
+```

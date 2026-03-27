@@ -1,0 +1,111 @@
+---
+title: 'Android Setup'
+description: 'Configure the Stripe Terminal React Native SDK for Android, including permissions, discovery methods, and Tap to Pay.'
+---
+
+## Requirements
+
+Before integrating the SDK, make sure your Android project meets the following minimum requirements:
+
+| Requirement | Value |
+| --- | --- |
+| Minimum API level | 26 |
+| `compileSdkVersion` | 35 |
+| `targetSdkVersion` | 35 |
+
+<Warning>
+  Attempting to override `minSdkVersion` below API 26 will not work. The SDK performs internal runtime API level validation and will reject lower values at runtime, regardless of what is set in your manifest.
+</Warning>
+
+## Installation
+
+```bash
+yarn add @stripe/stripe-terminal-react-native
+```
+
+## Permissions
+
+Add the following entries to your `AndroidManifest.xml`. The permissions you need depend on which reader types and discovery methods you use.
+
+```xml AndroidManifest.xml
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+  <!-- Required for Bluetooth readers (API 31+) -->
+  <uses-permission android:name="android.permission.BLUETOOTH_SCAN" />
+  <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+
+  <!-- Required for Bluetooth readers (API 30 and below) -->
+  <uses-permission android:name="android.permission.BLUETOOTH" />
+  <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
+
+  <!-- Required for Bluetooth reader discovery on older Android versions -->
+  <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+
+  <!-- Required for internet-connected readers -->
+  <uses-permission android:name="android.permission.INTERNET" />
+
+</manifest>
+```
+
+### Requesting permissions at runtime
+
+The SDK provides a `requestNeededAndroidPermissions` utility to handle runtime permission requests. It requests `ACCESS_FINE_LOCATION` on all Android versions, and additionally requests `BLUETOOTH_CONNECT` and `BLUETOOTH_SCAN` on API 31 (Android 12) and above.
+
+```typescript
+import { requestNeededAndroidPermissions } from '@stripe/stripe-terminal-react-native';
+
+const { error } = await requestNeededAndroidPermissions({
+  accessFineLocation: {
+    title: 'Location Permission',
+    message: 'Stripe Terminal needs access to your location',
+    buttonPositive: 'Accept',
+  },
+});
+
+if (error) {
+  console.warn('Required permissions were not granted:', error);
+}
+```
+
+Call this before initializing the SDK or starting reader discovery.
+
+## Supported discovery methods
+
+The following discovery methods are available on Android:
+
+| Method | Description |
+| --- | --- |
+| `bluetoothScan` | Discover Bluetooth readers in range |
+| `internet` | Discover internet-connected readers |
+| `tapToPay` | Use the Android device itself as a reader |
+| `appsOnDevices` | Readers running as apps on Android devices |
+| `usb` | Discover USB-connected readers |
+
+## Tap to Pay on Android
+
+<Note>
+  Tap to Pay on Android requires **API level 30 or higher** and **Google Play Services**.
+</Note>
+
+To enable Tap to Pay, pass `tapToPayCheck: true` in the Expo plugin configuration (if using Expo), or ensure the following Gradle property is set in your project:
+
+```
+StripeTerminalReactNative_taptopay.enabled=true
+```
+
+When Tap to Pay is active, the SDK spawns a separate process for the payment flow. To avoid initializing your full application in that process, call the `TapToPay.isInTapToPayProcess()` guard early in your `Application.onCreate`:
+
+```kotlin MainApplication.kt
+import com.stripeterminalreactnative.TapToPay
+
+override fun onCreate() {
+  super.onCreate()
+  if (TapToPay.isInTapToPayProcess()) { return }
+  // ... rest of your initialization
+}
+```
+
+## ProGuard / R8
+
+The SDK's AAR ships with its own consumer ProGuard rules, so no additional configuration is required for release builds with minification enabled.

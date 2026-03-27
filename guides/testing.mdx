@@ -1,0 +1,187 @@
+---
+title: 'Testing'
+description: 'Test your Stripe Terminal integration using simulated readers and test cards without physical hardware.'
+---
+
+The Stripe Terminal SDK includes a built-in simulator that lets you test the full payment flow without a physical reader. You can control which card is presented, simulate software updates, and test offline scenarios.
+
+## Simulated reader
+
+Pass `simulated: true` to `discoverReaders` to use a virtual reader instead of scanning for real hardware.
+
+```typescript
+const { discoverReaders, connectReader } = useStripeTerminal({
+  onUpdateDiscoveredReaders: async (readers) => {
+    if (readers.length === 0) return;
+
+    // Connect to the simulated reader
+    const { reader, error } = await connectReader({
+      discoveryMethod: 'bluetoothScan',
+      reader: readers[0]!,
+      locationId: 'tml_location_id',
+    });
+
+    if (error) {
+      console.error('Connect error:', error.message);
+    }
+  },
+});
+
+await discoverReaders({
+  discoveryMethod: 'bluetoothScan',
+  simulated: true,          // use the built-in virtual reader
+});
+```
+
+<Tip>
+  The simulated reader is available for `bluetoothScan`, `internet`, `usb`, and `tapToPay` discovery methods. `appsOnDevices` does not support simulated mode.
+</Tip>
+
+## Set a simulated card
+
+Call `setSimulatedCard` with a Stripe test card number before running a payment. The virtual reader presents this card automatically.
+
+```typescript
+const { setSimulatedCard } = useStripeTerminal();
+
+// Use a standard Stripe test card
+await setSimulatedCard('4242424242424242');   // Visa, always succeeds
+await setSimulatedCard('4000000000009995');   // Insufficient funds
+await setSimulatedCard('4000000000000002');   // Card declined
+await setSimulatedCard('4000002500003155');   // Requires 3D Secure
+```
+
+<Note>
+  Use Stripe test card numbers. Real card numbers are not accepted in simulated mode. Full list: [stripe.com/docs/testing](https://stripe.com/docs/testing#cards).
+</Note>
+
+## Simulate reader updates
+
+Call `simulateReaderUpdate` before connecting to control which update scenario the simulated reader triggers on connection.
+
+```typescript
+import type { Reader } from '@stripe/stripe-terminal-react-native';
+
+const { simulateReaderUpdate } = useStripeTerminal();
+
+// Simulate an optional update available on connection
+await simulateReaderUpdate('available');
+
+// Simulate a required update (reader unusable until installed)
+await simulateReaderUpdate('required');
+
+// Simulate a required update for offline mode
+await simulateReaderUpdate('requiredForOffline');
+
+// Simulate a low-battery scenario during update
+await simulateReaderUpdate('lowBattery');
+
+// No update (default)
+await simulateReaderUpdate('none');
+
+// Random update type on each connection
+await simulateReaderUpdate('random');
+```
+
+See the [Reader updates](/guides/reader-updates) guide for how to handle these scenarios in your app.
+
+## Simulate offline mode
+
+Use `setSimulatedOfflineMode` to test how your app handles offline payment collection and forwarding.
+
+```typescript
+const { setSimulatedOfflineMode } = useStripeTerminal();
+
+// Put the simulated reader into offline mode
+await setSimulatedOfflineMode(true);
+
+// Return to online mode
+await setSimulatedOfflineMode(false);
+```
+
+While offline, payments are stored on the reader and forwarded when connectivity is restored. Use `onDidChangeOfflineStatus`, `onDidForwardPaymentIntent`, and `onDidForwardingFailure` to monitor offline payment state.
+
+## Simulate collectInputs results
+
+If you use `collectInputs` to gather data from the customer on the reader screen, use `setSimulatedCollectInputsResult` to control the simulated outcome.
+
+```typescript
+const { setSimulatedCollectInputsResult } = useStripeTerminal();
+
+// Set the simulated behavior (value is platform-defined)
+await setSimulatedCollectInputsResult('completed');
+await setSimulatedCollectInputsResult('skipped');
+```
+
+## Get the native SDK version
+
+`getNativeSdkVersion` returns the version string of the underlying Stripe Terminal native SDK. Useful for debugging and support tickets.
+
+```typescript
+const { getNativeSdkVersion } = useStripeTerminal();
+
+const version = await getNativeSdkVersion();
+console.log('Native SDK version:', version);
+// Example output: "3.7.0"
+```
+
+## Relevant error codes
+
+| Error code | When it occurs |
+|---|---|
+| `CANCELED` | An operation was cancelled, e.g. the user cancelled collection on the reader. |
+| `BLUETOOTH_SCAN_TIMED_OUT` | Bluetooth discovery exceeded the configured timeout without finding a reader. |
+| `CARD_READ_TIMED_OUT` | The reader did not receive a card within the allowed time window. |
+
+## Full test setup example
+
+```typescript
+import React, { useEffect } from 'react';
+import { useStripeTerminal } from '@stripe/stripe-terminal-react-native';
+
+export function useSimulatedReader() {
+  const {
+    initialize,
+    simulateReaderUpdate,
+    setSimulatedCard,
+    discoverReaders,
+    connectReader,
+    getNativeSdkVersion,
+  } = useStripeTerminal({
+    onUpdateDiscoveredReaders: async (readers) => {
+      if (readers.length === 0) return;
+
+      await connectReader({
+        discoveryMethod: 'bluetoothScan',
+        reader: readers[0]!,
+        locationId: 'tml_location_id',
+      });
+    },
+  });
+
+  useEffect(() => {
+    const setup = async () => {
+      const { error } = await initialize();
+      if (error) {
+        console.error('Init failed:', error.message);
+        return;
+      }
+
+      const version = await getNativeSdkVersion();
+      console.log('Native SDK version:', version);
+
+      // Configure the simulated reader
+      await simulateReaderUpdate('none');              // no update on connect
+      await setSimulatedCard('4242424242424242');      // always succeeds
+
+      // Discover the virtual reader
+      await discoverReaders({
+        discoveryMethod: 'bluetoothScan',
+        simulated: true,
+      });
+    };
+
+    setup();
+  }, []);
+}
+```
